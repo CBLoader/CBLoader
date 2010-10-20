@@ -200,9 +200,24 @@ namespace CharacterBuilderLoader
                     data = new byte[excessBytes];
                     
                     // find the location of the filename and move to the spot that we want to null out
+                    // check that we have a ldsfld
+                    if (def.Method.Code[patternIndex - 5] == 0x7f)
+                    {
+                        // read the int, shift off the table number
+                        int fieldNum =
+                            BitConverter.ToInt32(def.Method.Code,patternIndex - 4)
+                            << 8 >> 8;
+
+                    }
+
                     // TODO: remove this hardcoded string location
-                    memoryOffset = ev.Module.BaseAddress.ToInt32() + 0x411D4 + FINAL_FILENAME.Length * 2;
+                    // RVA: 00044238
+                    // FileOffset: 00044238
+                    // Field-Name:  ?A0x1e9d9cdc.unnamed-global-217  (#2401)
+                    memoryOffset = ev.Module.BaseAddress.ToInt32() + 0x44238 + FINAL_FILENAME.Length * 2;
                     // null out the end bytes of the string
+                    string dstr = Encoding.Unicode.GetString(
+                        pmr.ReadProcessMemory(new IntPtr(memoryOffset), (uint)ENCRYPTED_FILENAME.Length * 2, out writtenBytes));
                     pmr.WriteProcessMemory(new IntPtr(memoryOffset), data, out writtenBytes);
                 }
                 else
