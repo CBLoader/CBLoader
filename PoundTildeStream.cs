@@ -19,12 +19,8 @@ namespace CharacterBuilderLoader
         private int stringIndexSize = 2;
         private int guidIndexSize = 2;
         private int blobIndexSize = 2;
+        private Dictionary<MetaTableID,TableInfo> tableInfoLkp;
 
-        private const int MODULE_BIT        = 0x01;
-        private const int TYPE_REF_BIT      = 0x02;
-        private const int TYPE_DEF_BIT      = 0x04;
-        private const int FIELD_BIT         = 0x10;
-        private const int METHOD_DEF_BIT    = 0x40;
 
         public PoundTildeStream(FileStream fs)
         {
@@ -35,37 +31,45 @@ namespace CharacterBuilderLoader
 
         private void readTable(FileStream fs)
         {
-            // doing just enough here to get to the method defs
-            int moduleRows = getRowCount(fs, MODULE_BIT);
-            int typeRefRows = getRowCount(fs, TYPE_REF_BIT);
-            int typeDefRows = getRowCount(fs, TYPE_DEF_BIT);
-            int fieldRows = getRowCount(fs, FIELD_BIT);
-            int methodDefRows = getRowCount(fs, METHOD_DEF_BIT);
-
-            // count off the rest of the fields and seek past
-            int bitCount = 0;
-            long validCopy = Valid >> 7;
-            while (validCopy > 0)
+            // determine the number of rows in each field
+            int[] tableNums = ((int[])Enum.GetValues(typeof(MetaTableID)));
+            int[] tableKeys = tableNums.Select(i => 1 << i).ToArray();
+            List<TableInfo> tableInfo = new List<TableInfo>();
+            for(int i = 0; i < tableNums.Length; i++)
             {
-                if ((validCopy & 1) > 0)
-                    bitCount++;
-                validCopy >>= 1;
+                tableInfo.Add(new TableInfo(){
+                   ID = (MetaTableID)tableNums[i],
+                   RowCount = getRowCount(fs,tableKeys[i])
+                });
             }
-            // now read off the rest of the counts
-            fs.Seek(bitCount * 4, SeekOrigin.Current);
+            tableInfoLkp = tableInfo.ToDictionary(ti => ti.ID);
+            
+            foreach(TableInfo table in tableInfo) {
 
+            }
             // read past the non-method rows
-            fs.Seek(getModuleSize() * moduleRows, SeekOrigin.Current);
-            fs.Seek(getTypeRefSize() * typeRefRows, SeekOrigin.Current);
-            fs.Seek(getTypeDefSize() * typeDefRows, SeekOrigin.Current);
-            fs.Seek(getFieldSize() * fieldRows, SeekOrigin.Current);
+            //fs.Seek(getModuleSize() * moduleRows, SeekOrigin.Current);
+            //fs.Seek(getTypeRefSize() * typeRefRows, SeekOrigin.Current);
+            //fs.Seek(getTypeDefSize() * typeDefRows, SeekOrigin.Current);
+            //fs.Seek(getFieldSize() * fieldRows, SeekOrigin.Current);
             // now read the methods
-            Methods = new List<MethodDef>();
-            for (int i = 0; i < methodDefRows; i++)
-            {
-                // TODO: the paramIndexSize shouldn't be a constant 2
-                Methods.Add(new MethodDef(fs,stringIndexSize,blobIndexSize,2, i+1));
-            }
+        //    Methods = new List<MethodDef>();
+        //    for (int i = 0; i < methodDefRows; i++)
+        //    {
+        //        // TODO: the paramIndexSize shouldn't be a constant 2
+        //        Methods.Add(new MethodDef(fs,stringIndexSize,blobIndexSize,2, i+1));
+        //    }
+        }
+
+        private int getComboRefSize(params MetaTableID[] ids)
+        {
+            int bitsUsed = ids.Length;
+            return 0;
+        }
+
+        private int getRefSize(MetaTableID id)
+        {
+            return tableInfoLkp[id].RowCount > 0xFFFF ? 4 : 2;
         }
 
         public void FillMethods(FileStream fs,MetaDataStream Strings, PEFile file)
