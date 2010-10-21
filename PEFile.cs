@@ -65,6 +65,12 @@ namespace CharacterBuilderLoader
                 .FirstOrDefault(md => md.Name == methodName);
         }
 
+        public int GetFieldDataRVA(int fieldNum)
+        {
+            return ((PoundTildeStream)CLRDirectory.Tables.Data).FieldRVAs.First( rv => rv.FieldIndex == fieldNum).RVA;
+
+        }
+
 
 
     }

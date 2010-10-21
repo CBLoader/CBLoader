@@ -43,6 +43,7 @@ namespace CharacterBuilderLoader
         ManifestResource = 40,
         NestedClass = 41,
         GenericParam = 42,
+        MethodSpec = 43,
         GenericParamConstraint = 44
     }
 }

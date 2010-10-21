@@ -37,7 +37,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\Program Files %28x86%29\Wizards of the Coast\Character Builder\CharBuilderFull_p\</OutputPath>
+    <OutputPath>..\..\Program Files %28x86%29\Wizards of the Coast\Character Builder\CharBuilderFull_p\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -61,7 +61,7 @@
     </Reference>
     <Reference Include="NativeDebugWrappers, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\lib\NativeDebugWrappers.dll</HintPath>
+      <HintPath>lib\NativeDebugWrappers.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -79,6 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CLRDirectory.cs" />
+    <Compile Include="FieldDef.cs" />
     <Compile Include="MetaDataHeader.cs" />
     <Compile Include="MetaDataStream.cs" />
     <Compile Include="MetaTableID.cs" />

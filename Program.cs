@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using System.IO;
-using ApplicationUpdate.Client;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Samples.Debugging.Native;
 using System.Xml.Linq;
 using System.Xml;
+using ApplicationUpdate.Client;
 
 namespace CharacterBuilderLoader
 {
@@ -21,6 +21,7 @@ namespace CharacterBuilderLoader
         private static string FINAL_FILENAME = "combined.dnd40";
         private static string LOADED_FILE = "D20RulesEngine.dll";
         private static string EXECUTABLE = "CharacterBuilder.exe";
+        private static string EXECUTABLE_ARGS = "";
         private static Guid applicationID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
         static void Main(string[] args)
         {
@@ -80,7 +81,7 @@ namespace CharacterBuilderLoader
             //// start character builder
             PEFile file = new PEFile(LOADED_FILE);
             NativePipeline np = new NativePipeline();
-            NativeDbgProcess proc = np.CreateProcessDebug(EXECUTABLE, "");
+            NativeDbgProcess proc = np.CreateProcessDebug(EXECUTABLE, EXECUTABLE_ARGS);
             while (true)
             {
                 NativeEvent ne = np.WaitForDebugEventInfinite();
@@ -184,7 +185,7 @@ namespace CharacterBuilderLoader
                 pattern[1] = 0x28;
                 Array.ConstrainedCopy(file.GetMetaDataToken(def2), 0, pattern, 2, 4);
                 int patternIndex = findPatternIndex(def, pattern);
-                // if we found it, patch. Otherwise, assume we've already patched
+                // if we found it, pat*ch. Otherwise, assume we've already patched
                 if (patternIndex > -1)
                 {
                     int RVA = def.GetByteOffset(file, patternIndex);
@@ -207,18 +208,15 @@ namespace CharacterBuilderLoader
                         int fieldNum =
                             BitConverter.ToInt32(def.Method.Code,patternIndex - 4)
                             << 8 >> 8;
+                        RVA = file.GetFieldDataRVA(fieldNum);
 
+                        memoryOffset = ev.Module.BaseAddress.ToInt32() + RVA + FINAL_FILENAME.Length * 2;
+                        // null out the end bytes of the string
+                        string dstr = Encoding.Unicode.GetString(
+                            pmr.ReadProcessMemory(new IntPtr(memoryOffset), (uint)ENCRYPTED_FILENAME.Length * 2, out writtenBytes));
+                        pmr.WriteProcessMemory(new IntPtr(memoryOffset), data, out writtenBytes);
                     }
 
-                    // TODO: remove this hardcoded string location
-                    // RVA: 00044238
-                    // FileOffset: 00044238
-                    // Field-Name:  ?A0x1e9d9cdc.unnamed-global-217  (#2401)
-                    memoryOffset = ev.Module.BaseAddress.ToInt32() + 0x44238 + FINAL_FILENAME.Length * 2;
-                    // null out the end bytes of the string
-                    string dstr = Encoding.Unicode.GetString(
-                        pmr.ReadProcessMemory(new IntPtr(memoryOffset), (uint)ENCRYPTED_FILENAME.Length * 2, out writtenBytes));
-                    pmr.WriteProcessMemory(new IntPtr(memoryOffset), data, out writtenBytes);
                 }
                 else
                     Console.WriteLine("This file already appears to be patched, or the code has changed");
