@@ -85,6 +85,7 @@ namespace CharacterBuilderLoader
             while (true)
             {
                 NativeEvent ne = np.WaitForDebugEventInfinite();
+                ne.Process.HandleIfLoaderBreakpoint(ne);
                 if (ne.EventCode == NativeDebugEventCode.LOAD_DLL_DEBUG_EVENT)
                 {
                     DllBaseNativeEvent ev = (DllBaseNativeEvent)ne;
