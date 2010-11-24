@@ -47,7 +47,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\Program Files %28x86%29\Wizards of the Coast\Character Builder\CharBuilderFull_p\</OutputPath>
+    <OutputPath>bin\release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -55,9 +55,9 @@
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ApplicationUpdate.Client, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\Program Files (x86)\Wizards of the Coast\Character Builder\CharBuilderFull_p\bin\ApplicationUpdate.Client.dll</HintPath>
+    <Reference Include="ApplicationUpdate.Client">
+      <HintPath>..\..\Program Files (x86)\Wizards of the Coast\Character Builder\CharBuilderFull_p\ApplicationUpdate.Client.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="NativeDebugWrappers, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -80,6 +80,8 @@
   <ItemGroup>
     <Compile Include="CLRDirectory.cs" />
     <Compile Include="FieldDef.cs" />
+    <Compile Include="FileManager.cs" />
+    <Compile Include="LastMergedFileInfo.cs" />
     <Compile Include="MetaDataHeader.cs" />
     <Compile Include="MetaDataStream.cs" />
     <Compile Include="MetaTableID.cs" />
@@ -91,6 +93,7 @@
     <Compile Include="PEFileHeader.cs" />
     <Compile Include="PESection.cs" />
     <Compile Include="PoundTildeStream.cs" />
+    <Compile Include="ProcessManager.cs" />
     <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -103,7 +106,16 @@
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Custom\sample.part">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="icons\hres-huge.ico" />
+    <Content Include="gpl-2.0.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="README.TXT">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Resources\hres-large.ico" />
     <None Include="icons\hres-med.ico" />
     <None Include="icons\hres-small.ico" />
@@ -137,6 +149,7 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
