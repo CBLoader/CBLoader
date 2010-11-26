@@ -1,0 +1,15 @@
+﻿v1.0
+Initial release
+
+V1.0.1
+Fixed an issue where the character builder would not load on WindowsXP due to an unhandled breakpoint exception.
+
+V1.1.0
+Added the ability to use a 'Custom' folder to contain multiple .part files.
+
+V1.1.1
+Fixed a crash when the 'Custom' folder did not exist'
+
+V1.1.2
+Improved the error message when the machine does not have a decryption key
+Added 'patch mode', the -p switch can now be used to patch the character builder on-disk in an attempt to bypass issues some users are having with the loader solution.

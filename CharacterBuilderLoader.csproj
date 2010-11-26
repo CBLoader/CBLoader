@@ -37,7 +37,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\Program Files %28x86%29\Wizards of the Coast\Character Builder\CharBuilderFull_p\</OutputPath>
+    <OutputPath>..\..\CharacterBuilder\CharBuilderFull_p\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -56,8 +56,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ApplicationUpdate.Client">
-      <HintPath>..\..\Program Files (x86)\Wizards of the Coast\Character Builder\CharBuilderFull_p\ApplicationUpdate.Client.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\CharacterBuilder\CharBuilderFull_p\ApplicationUpdate.Client.dll</HintPath>
     </Reference>
     <Reference Include="NativeDebugWrappers, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -68,6 +67,7 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -82,6 +82,7 @@
     <Compile Include="FieldDef.cs" />
     <Compile Include="FileManager.cs" />
     <Compile Include="LastMergedFileInfo.cs" />
+    <Compile Include="Log.cs" />
     <Compile Include="MetaDataHeader.cs" />
     <Compile Include="MetaDataStream.cs" />
     <Compile Include="MetaTableID.cs" />
@@ -110,6 +111,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="icons\hres-huge.ico" />
+    <Content Include="Changelog.txt" />
     <Content Include="gpl-2.0.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
