@@ -10,6 +10,7 @@ using Microsoft.Samples.Debugging.Native;
 using System.Xml.Linq;
 using System.Xml;
 using ApplicationUpdate.Client;
+using System.Security.Cryptography;
 
 namespace CharacterBuilderLoader
 {
@@ -22,6 +23,7 @@ namespace CharacterBuilderLoader
                 FileManager fm = new FileManager();
                 bool loadExec = true;
                 bool forcedReload = false;
+                bool patchFile = false;
                 if (args != null && args.Length > 0)
                 {
                     for (int i = 0; i < args.Length; i++)
@@ -30,11 +32,16 @@ namespace CharacterBuilderLoader
                             forcedReload = true;
                         else if (args[i] == "-n")
                             loadExec = false;
+                        else if (args[i] == "-v")
+                            Log.VerboseMode = true;
+                        else if (args[i] == "-p")
+                            patchFile = true;
                         else if (args[i] == "-f")
                         {
-                            if(args.Length > i+1)
-                                fm.CustomFolders.Add(args[i++]);
-                            else {
+                            if (args.Length > i + 1)
+                                fm.CustomFolders.Add(args[++i]);
+                            else
+                            {
                                 displayHelp();
                                 return;
                             }
@@ -46,10 +53,16 @@ namespace CharacterBuilderLoader
                         }
                     }
                 }
+                Log.Debug("Checking for merge and extract.");
                 fm.ExtractAndMerge(forcedReload);
 
                 if (loadExec)
-                    ProcessManager.StartProcess();
+                {
+                    if (patchFile)
+                        ProcessManager.StartProcessAndPatchFile();
+                    else
+                        ProcessManager.StartProcessAndPatchMemory();
+                }
             }
             catch (Exception e)
             {
@@ -71,6 +84,7 @@ namespace CharacterBuilderLoader
             Console.WriteLine("\t-e\tRe-Extract and Re-Merge the xml files");
             Console.WriteLine("\t-n\tDo not load the executable");
             Console.WriteLine("\t-f\tSpecifies a folder containing custom rules files. This switch can be specified multiple times");
+            Console.WriteLine("\t-v\tRuns CBLoader in verbose mode. Useful for debugging.");
             Console.WriteLine("\t-h\tDisplay this help.");
             Console.WriteLine("If the patched files do not exist, and -n is not specified, they will be created");
         }

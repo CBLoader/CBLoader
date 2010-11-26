@@ -67,8 +67,8 @@ namespace CharacterBuilderLoader
             if (!File.Exists(CORE_FILENAME))
                 throw new Exception("Error, could not find file: " + CORE_FILENAME);
 
-            List<FileInfo> customFiles = customFolders.SelectMany(fn =>
-                new DirectoryInfo(fn).GetFiles("*.part")).OrderBy(f => f.Name).ToList();
+            List<FileInfo> customFiles = customFolders.SelectMany(
+                GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
             customFiles.Add(new FileInfo(PART_FILENAME));
             if (!forced && File.Exists(FINAL_FILENAME) && currentlyMerged.Count > 0)
             {
@@ -98,11 +98,19 @@ namespace CharacterBuilderLoader
                 }
             }
 
-            main.Save(FINAL_FILENAME);
+            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
             using (StreamWriter sw = new StreamWriter(MERGED_FILEINFO, false))
             {
                 mergedSerializer.Serialize(sw, currentlyMerged);
             }
+        }
+
+        private static FileInfo[] GetPartsFromDirectory(string fn)
+        {
+            if(Directory.Exists(fn))
+                return new DirectoryInfo(fn).GetFiles("*.part");
+            else
+                return new FileInfo[0];
         }
 
         private bool FileWasMerged(FileInfo fi)
@@ -162,12 +170,19 @@ namespace CharacterBuilderLoader
             if (forced || !File.Exists(CORE_FILENAME) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CORE_FILENAME))
             {
                 Console.WriteLine("Extracting " + CORE_FILENAME);
-                using (StreamReader sr = new StreamReader(CommonMethods.GetDecryptedStream(applicationID, ENCRYPTED_FILENAME)))
+                try
                 {
-                    using (StreamWriter sw = new StreamWriter(CORE_FILENAME))
+                    using (StreamReader sr = new StreamReader(CommonMethods.GetDecryptedStream(applicationID, ENCRYPTED_FILENAME)))
                     {
-                        sw.Write(sr.ReadToEnd());
+                        using (StreamWriter sw = new StreamWriter(CORE_FILENAME))
+                        {
+                            sw.Write(sr.ReadToEnd());
+                        }
                     }
+                }
+                catch(ArgumentException)
+                {
+                    throw new Exception("Error decrypting file. Do you have a valid decryption key for character builder installed?");
                 }
                 if (!File.Exists(PART_FILENAME))
                 {
