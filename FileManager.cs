@@ -6,6 +6,7 @@ using System.IO;
 using System.Xml.Linq;
 using ApplicationUpdate.Client;
 using System.Xml.Serialization;
+using System.Xml;
 
 namespace CharacterBuilderLoader
 {
@@ -53,8 +54,8 @@ namespace CharacterBuilderLoader
         /// </summary>
         public void ExtractAndMerge(bool forced)
         {
-                ExtractFile(forced);
-                MergeFiles(forced);
+            ExtractFile(forced);
+            MergeFiles(forced);
         }
 
         /// <summary>
@@ -77,14 +78,14 @@ namespace CharacterBuilderLoader
             }
             currentlyMerged.Clear();
             // construct the custom rules file
-            XDocument main = (XDocument)XDocument.Load(CORE_FILENAME);
+            XDocument main = (XDocument)XDocument.Load(CORE_FILENAME,LoadOptions.PreserveWhitespace);
             foreach (FileInfo fi in customFiles)
             {
                 Console.WriteLine("Merging " + fi.FullName + "...");
                 try
                 {
 
-                    XDocument customContent = (XDocument)XDocument.Load(fi.FullName);
+                    XDocument customContent = (XDocument)XDocument.Load(fi.FullName,LoadOptions.PreserveWhitespace);
                     MergePart(customContent, main);
                     currentlyMerged.Add(new LastMergedFileInfo()
                     {
@@ -97,12 +98,43 @@ namespace CharacterBuilderLoader
                     Console.WriteLine("ERROR LOADING FILE! (" + e.Message + ")");
                 }
             }
-
-            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
+            using (XmlTextWriter xw = new XmlTextWriter(FINAL_FILENAME, Encoding.UTF8))
+            {
+                xw.Formatting = Formatting.Indented;
+                SaveDocument(xw, main.Root);
+            }
+//            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
             using (StreamWriter sw = new StreamWriter(MERGED_FILEINFO, false))
             {
                 mergedSerializer.Serialize(sw, currentlyMerged);
             }
+        }
+
+        /// <summary>
+        /// Writing this out via an xmlwriter, XDocument.Save overrides important line-ending information
+        /// </summary>
+        /// <param name="xw"></param>
+        /// <param name="parent"></param>
+        private void SaveDocument(XmlWriter xw, XElement parent) {
+
+            xw.WriteStartElement(parent.Name.LocalName);
+            foreach (XAttribute xa in parent.Attributes())
+                xw.WriteAttributeString(xa.Name.LocalName, xa.Value);
+            foreach (XNode xe in parent.Nodes())
+            {
+                if (xe.NodeType == System.Xml.XmlNodeType.Text)
+                {
+                    XText xt = (XText)xe;
+                    if (!String.IsNullOrEmpty(xt.Value))
+                        xw.WriteString(xt.Value.Replace('\n', '\r'));
+                }
+                else if (xe.NodeType == System.Xml.XmlNodeType.Element)
+                {
+                    XElement el = (XElement)xe;
+                    SaveDocument(xw, el);
+                }
+            }
+            xw.WriteEndElement();
         }
 
         private static FileInfo[] GetPartsFromDirectory(string fn)
@@ -131,6 +163,7 @@ namespace CharacterBuilderLoader
             // replace all main elements with part elements having the same internal-id
             foreach (XElement customRule in part.Root.Descendants(XName.Get("RulesElement")))
             {
+
                 string id = getID(customRule);
                 if (id != null)
                 {
