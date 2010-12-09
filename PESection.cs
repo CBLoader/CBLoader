@@ -32,6 +32,10 @@ namespace CharacterBuilderLoader
             fs.Seek(PointerToRawData, SeekOrigin.Begin);
             fs.Read(Data, 0, SizeOfRawData);
         }
+        public bool FileOffsetIsInThisSection(int fileOffset)
+        {
+            return PointerToRawData <= fileOffset && PointerToRawData + SizeOfRawData > fileOffset;
+        }
 
         public bool IsInThisSection(int RVA)
         {
@@ -41,6 +45,11 @@ namespace CharacterBuilderLoader
         public int CalculateFileOffset(int RVA)
         {
             return RVA - VirtualAddress + PointerToRawData;
+        }
+
+        public int CalculateRVA(int fileOffset)
+        {
+            return (fileOffset - PointerToRawData) + VirtualAddress;
         }
     }
 }

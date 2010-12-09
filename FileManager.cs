@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using ApplicationUpdate.Client;
 using System.Xml.Serialization;
 using System.Xml;
+using System.Security.Cryptography;
 
 namespace CharacterBuilderLoader
 {
@@ -15,26 +16,59 @@ namespace CharacterBuilderLoader
     /// </summary>
     public class FileManager
     {
+        public const string APPLICATION_ID = "2a1ddbc4-4503-4392-9548-d0010d1ba9b1";
         public const string ENCRYPTED_FILENAME = "combined.dnd40.encrypted";
-        public const string CORE_FILENAME = "combined.dnd40.main";
-        public const string PART_FILENAME = "combined.dnd40.part";
-        public const string FINAL_FILENAME = "combined.dnd40";
-        private const string MERGED_FILEINFO = "cbloader.merged";
-        private readonly Guid applicationID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
-        private List<string> customFolders = new List<string>() { "custom" };
+        public readonly Guid applicationID = new Guid(APPLICATION_ID);
+
+        private List<string> customFolders;
         private static XmlSerializer mergedSerializer = new XmlSerializer(typeof(List<LastMergedFileInfo>));
         private List<LastMergedFileInfo> currentlyMerged;
 
+        public bool ForceUseKeyFile { get; set; }
+        public string KeyFile { get; set; }
+
+        private static string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\CBLoader\\";
+        public static string BasePath
+        {
+            get { return basePath; }
+            set { basePath = value; }
+        }
+        public static string MergedPath
+        {
+            get { return BasePath + "combined.dnd40"; }
+        }
+        private static string MergedFileInfo
+        {
+            get { return  BasePath + "cbloader.merged"; }
+        }
+        private static string CoreFileName
+        {
+            get { return BasePath + "combined.dnd40.main"; }
+        }
+
+        private static string PartFileName
+        {
+            get { return BasePath + "combined.dnd40.part"; }
+        }
+
+
         public FileManager()
         {
-            if (File.Exists(MERGED_FILEINFO))
+            KeyFile = "ApplicationKey.update";
+            if (!Directory.Exists(BasePath))
             {
-                using(StreamReader sr = new StreamReader(MERGED_FILEINFO,Encoding.Default)) {
+                Directory.CreateDirectory(BasePath);
+            }
+            if (File.Exists(MergedFileInfo))
+            {
+                using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
+                {
                     currentlyMerged = (List<LastMergedFileInfo>)mergedSerializer.Deserialize(sr);
                 }
             }
             else
                 currentlyMerged = new List<LastMergedFileInfo>();
+             customFolders = new List<string>() { "custom" };
         }
 
         /// <summary>
@@ -65,27 +99,26 @@ namespace CharacterBuilderLoader
         /// </summary>
         private void MergeFiles(bool forced)
         {
-            if (!File.Exists(CORE_FILENAME))
-                throw new Exception("Error, could not find file: " + CORE_FILENAME);
+            if (!File.Exists(CoreFileName))
+                throw new Exception("Error, could not find file: " + CoreFileName);
 
             List<FileInfo> customFiles = customFolders.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
-            customFiles.Add(new FileInfo(PART_FILENAME));
-            if (!forced && File.Exists(FINAL_FILENAME) && currentlyMerged.Count > 0)
+            customFiles.Add(new FileInfo(PartFileName));
+            if (!forced && File.Exists(MergedPath) && currentlyMerged.Count > 0)
             {
                 if (customFiles.TrueForAll(FileWasMerged))
                     return;
             }
             currentlyMerged.Clear();
             // construct the custom rules file
-            XDocument main = (XDocument)XDocument.Load(CORE_FILENAME,LoadOptions.PreserveWhitespace);
+            XDocument main = (XDocument)XDocument.Load(CoreFileName, LoadOptions.PreserveWhitespace);
             foreach (FileInfo fi in customFiles)
             {
-                Console.WriteLine("Merging " + fi.FullName + "...");
+                Log.Info("Merging " + fi.Name + "...");
                 try
                 {
-
-                    XDocument customContent = (XDocument)XDocument.Load(fi.FullName,LoadOptions.PreserveWhitespace);
+                    XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
                     MergePart(customContent, main);
                     currentlyMerged.Add(new LastMergedFileInfo()
                     {
@@ -95,16 +128,21 @@ namespace CharacterBuilderLoader
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("ERROR LOADING FILE! (" + e.Message + ")");
+                    currentlyMerged.Add(new LastMergedFileInfo()
+                    {
+                        FileName = fi.FullName,
+                        LastTouched = DateTime.MinValue
+                    });
+                    Log.Error("ERROR LOADING FILE: ", e);
                 }
             }
-            using (XmlTextWriter xw = new XmlTextWriter(FINAL_FILENAME, Encoding.UTF8))
+            using (XmlTextWriter xw = new XmlTextWriter(MergedPath, Encoding.UTF8))
             {
                 xw.Formatting = Formatting.Indented;
                 SaveDocument(xw, main.Root);
             }
-//            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
-            using (StreamWriter sw = new StreamWriter(MERGED_FILEINFO, false))
+            //            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
+            using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
             {
                 mergedSerializer.Serialize(sw, currentlyMerged);
             }
@@ -115,7 +153,8 @@ namespace CharacterBuilderLoader
         /// </summary>
         /// <param name="xw"></param>
         /// <param name="parent"></param>
-        private void SaveDocument(XmlWriter xw, XElement parent) {
+        private void SaveDocument(XmlWriter xw, XElement parent)
+        {
 
             xw.WriteStartElement(parent.Name.LocalName);
             foreach (XAttribute xa in parent.Attributes())
@@ -139,7 +178,7 @@ namespace CharacterBuilderLoader
 
         private static FileInfo[] GetPartsFromDirectory(string fn)
         {
-            if(Directory.Exists(fn))
+            if (Directory.Exists(fn))
                 return new DirectoryInfo(fn).GetFiles("*.part");
             else
                 return new FileInfo[0];
@@ -149,7 +188,7 @@ namespace CharacterBuilderLoader
         {
             LastMergedFileInfo lmf = currentlyMerged.FirstOrDefault(lmfi => lmfi.FileName.ToLower() == fi.FullName.ToLower());
             if (lmf != null)
-                return lmf.LastTouched.Equals(fi.LastWriteTime);
+                return lmf.LastTouched.Equals(fi.LastWriteTime) || lmf.LastTouched == DateTime.MinValue;
             else return false;
         }
 
@@ -200,26 +239,30 @@ namespace CharacterBuilderLoader
         /// </summary>
         private void ExtractFile(bool forced)
         {
-            if (forced || !File.Exists(CORE_FILENAME) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CORE_FILENAME))
+            if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CoreFileName))
             {
-                Console.WriteLine("Extracting " + CORE_FILENAME);
+                Log.Info("Extracting " + CoreFileName);
                 try
                 {
-                    using (StreamReader sr = new StreamReader(CommonMethods.GetDecryptedStream(applicationID, ENCRYPTED_FILENAME)))
-                    {
-                        using (StreamWriter sw = new StreamWriter(CORE_FILENAME))
-                        {
-                            sw.Write(sr.ReadToEnd());
-                        }
-                    }
+                    if (ForceUseKeyFile)
+                        ExtractWithKeyFile();
+                    else
+                       TryExtract();
                 }
-                catch(ArgumentException)
+                catch (CryptographicException)
                 {
-                    throw new Exception("Error decrypting file. Do you have a valid decryption key for character builder installed?");
+                    ExtractWithKeyFile();
                 }
-                if (!File.Exists(PART_FILENAME))
+                catch (ArgumentException)
                 {
-                    using (StreamWriter sw = new StreamWriter(PART_FILENAME))
+                    ExtractWithKeyFile();
+                }
+                catch(Exception e) {
+                    throw new Exception("General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriat write permissions.",e);
+                }
+                if (!File.Exists(PartFileName))
+                {
+                    using (StreamWriter sw = new StreamWriter(PartFileName))
                     {
                         sw.WriteLine("<D20Rules game-system=\"D&amp;D4E\">");
                         sw.WriteLine("</D20Rules>");
@@ -228,8 +271,37 @@ namespace CharacterBuilderLoader
             }
         }
 
+        private void TryExtract()
+        {
+            using (StreamReader sr = new StreamReader(CommonMethods.GetDecryptedStream(applicationID, ENCRYPTED_FILENAME)))
+            {
+                using (StreamWriter sw = new StreamWriter(CoreFileName))
+                {
+                    sw.Write(sr.ReadToEnd());
+                }
+            }
+        }
 
-
+        private void ExtractWithKeyFile()
+        {
+            Log.Debug("Not using registry key, trying on-disk key: " + KeyFile);
+            CommonMethods.KeyStore = new FileKeyInformationStore(KeyFile);
+            try
+            {
+                TryExtract();
+            }
+            catch (CryptographicException ce)
+            {
+                throw new Exception("Error decrypting the rules file. THis usually indicates a key problem. Check into using a keyfile!", ce);
+            }
+            catch(ArgumentException ae) {
+                throw new Exception("Error decrypting the rules file. THis usually indicates a key problem. Check into using a keyfile!", ae);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriat write permissions.", ex);
+            }
+        }
 
     }
 }

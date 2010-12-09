@@ -19,11 +19,19 @@ namespace CharacterBuilderLoader
 
         public CLRDirectory CLRDirectory { get; set; }
 
+        public byte[] GetMetDataToken(FieldDef fd)
+        {
+            return BitConverter.GetBytes(FieldDef.TOKEN_BIT << 24 | fd.FieldIndex);
+        }
+
         public byte[] GetMetaDataToken(MethodDef md)
         {
             return BitConverter.GetBytes(MethodDef.TOKEN_BIT << 24 | md.Index);
         }
-
+        public int FileOffsetToRVA(int fileoffset)
+        {
+            return FindSectionForFileOffset(fileoffset).CalculateRVA(fileoffset);
+        }
         public int RVAToFileOffset(int RVA)
         {
             return FindSectionForRVA(RVA).CalculateFileOffset(RVA);
@@ -32,8 +40,12 @@ namespace CharacterBuilderLoader
         public PESection FindSectionForRVA(int RVA)
         {
             return Sections.FirstOrDefault(s => s.IsInThisSection(RVA));
-
         }
+        public PESection FindSectionForFileOffset(int fileOffset)
+        {
+            return Sections.FirstOrDefault(s => s.FileOffsetIsInThisSection(fileOffset));
+        }
+
 
         public PEFile(string fileName)
         {
@@ -64,10 +76,19 @@ namespace CharacterBuilderLoader
             return ((PoundTildeStream)CLRDirectory.Tables.Data).Methods
                 .FirstOrDefault(md => md.Name == methodName);
         }
+        public List<MethodDef> FindDefsForMethodName(String methodName)
+        {
+            return ((PoundTildeStream)CLRDirectory.Tables.Data).Methods
+                .Where(md => md.Name == methodName).ToList();
+        }
+
+        public FieldDef GetField(int fieldNum) {
+            return ((PoundTildeStream)CLRDirectory.Tables.Data).FieldRVAs.First(rv => rv.FieldIndex == fieldNum);
+        }
 
         public int GetFieldDataRVA(int fieldNum)
         {
-            return ((PoundTildeStream)CLRDirectory.Tables.Data).FieldRVAs.First( rv => rv.FieldIndex == fieldNum).RVA;
+            return GetField(fieldNum).RVA;
 
         }
 
