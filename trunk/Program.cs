@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using System.Xml;
 using ApplicationUpdate.Client;
 using System.Security.Cryptography;
+using Microsoft.Win32;
 
 namespace CharacterBuilderLoader
 {
@@ -36,16 +37,19 @@ namespace CharacterBuilderLoader
                             Log.VerboseMode = true;
                         else if (args[i] == "-p")
                             patchFile = true;
-                        else if (args[i] == "-f")
+                        else if (args[i] == "-u")
+                            FileManager.BasePath = getArgString(args,ref i);
+                        else if (args[i] == "-a")
+                            UpdateRegistry();
+                        else if (args[i] == "-r")
+                            ExtractKeyFile(getArgString(args,ref i));
+                        else if (args[i] == "-k")
                         {
-                            if (args.Length > i + 1)
-                                fm.CustomFolders.Add(args[++i]);
-                            else
-                            {
-                                displayHelp();
-                                return;
-                            }
+                            fm.KeyFile = getArgString(args, ref i);
+                            fm.ForceUseKeyFile = true;
                         }
+                        else if (args[i] == "-f")
+                            fm.CustomFolders.Add(getArgString(args,ref i));
                         else
                         {
                             displayHelp();
@@ -66,27 +70,95 @@ namespace CharacterBuilderLoader
             }
             catch (Exception e)
             {
-                Exception current = e;
-                int tabCount = 0;
-                while (current != null)
+                Log.Error(String.Empty, e);
+            }
+            if (Log.ErrorLogged)
+            {
+                Log.Info("Errors Encountered While Loading. Would you like to open the log file? (y/n)");
+                if (Console.ReadKey().Key == ConsoleKey.Y)
                 {
-                    Console.WriteLine("".PadLeft(tabCount*3,' ') + e.Message);
-                    current = e.InnerException;
-                    tabCount++;
+                    Process p = new Process();
+                    p.StartInfo = new ProcessStartInfo("notepad.exe", Log.LogFile);
+                    p.Start();
                 }
-                Console.ReadKey();
+            }
+        }
+
+        private static string getArgString(string[] args, ref int i)
+        {
+            if (args.Length > i + 1)
+                return args[++i];
+            else {
+                displayHelp();
+                throw new FormatException("Invalid Arguments Specified");
             }
         }
 
         private static void displayHelp()
         {
-            Console.WriteLine("Usage: CBLoader.exe [-p] [-e] [-n] [-f customFolder]");
-            Console.WriteLine("\t-e\tRe-Extract and Re-Merge the xml files");
-            Console.WriteLine("\t-n\tDo not load the executable");
-            Console.WriteLine("\t-f\tSpecifies a folder containing custom rules files. This switch can be specified multiple times");
-            Console.WriteLine("\t-v\tRuns CBLoader in verbose mode. Useful for debugging.");
-            Console.WriteLine("\t-h\tDisplay this help.");
-            Console.WriteLine("If the patched files do not exist, and -n is not specified, they will be created");
+            Log.Info("Usage: CBLoader.exe [-p] [-e] [-n] [-v] [-a] [-r keyFile] [-k keyFile] [-u userFolder] [-f customFolder] [-h]");
+            Log.Info("\t-p\tUse Hard Patch mode.");
+            Log.Info("\t-e\tRe-Extract and Re-Merge the xml files");
+            Log.Info("\t-n\tDo not load the executable");
+            Log.Info("\t-v\tRuns CBLoader in verbose mode. Useful for debugging.");
+            Log.Info("\t-a\tAssociate CBLoader with .dnd4e character files.");
+            Log.Info("\t-r\tExtracts a keyfile from you local registry.");
+            Log.Info("\t-k\tUse a keyfile instead of the registry for decryption.");
+            Log.Info("\t-u\tSpecifies the directory used to hold working files Defaults to the user directory.");
+            Log.Info("\t-f\tSpecifies a folder containing custom rules files. This switch can be specified multiple times");
+            Log.Info("\t-h\tDisplay this help.");
+        }
+
+        private static void ExtractKeyFile(string filename)
+        {
+            RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")
+                .OpenSubKey(FileManager.APPLICATION_ID);
+            string currentVersion = rk.GetValue(null).ToString();
+            string encryptedKey = rk.OpenSubKey(currentVersion).GetValue(null).ToString();
+            byte[] stuff = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
+            byte[] base64Str = Convert.FromBase64String(encryptedKey);
+            string realKey = Convert.ToBase64String(ProtectedData.Unprotect(base64Str, stuff, DataProtectionScope.LocalMachine));
+            XDocument xd = new XDocument();
+            XElement applications = new XElement(XName.Get("Applications"));
+            XElement application = new XElement(XName.Get("Application"));
+            application.Add(createAttribute("ID", FileManager.APPLICATION_ID));
+            application.Add(createAttribute("CurrentUpdate", currentVersion));
+            application.Add(createAttribute("InProgress", "true"));
+            application.Add(createAttribute("InstallStage", "Complete"));
+            application.Add(createAttribute("InstallDate", DateTime.Now.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK")));
+            XElement update = new XElement(XName.Get("Update" + currentVersion));
+            update.Add(realKey);
+            application.Add(update);
+            applications.Add(application);
+            xd.Add(applications);
+            xd.Save(filename);
+        }
+
+        private static XAttribute createAttribute(string name, string value)
+        {
+            return new XAttribute(XName.Get(name), value);
+        }
+
+
+        /// <summary>
+        /// Sets .dnd4e File Association to CBLoader.
+        /// This means that the user can double-click a character file and launch CBLoader.
+        /// </summary>
+        public static void UpdateRegistry()
+        { // I'm not going to bother explaining File Associations. Either look it up yourself, or trust me that it works.
+            try // Changing HKCL needs admin permissions
+            {
+                Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".dnd4e");
+                k.SetValue("", ".dnd4e");
+                k = k.CreateSubKey("shell");
+                k = k.CreateSubKey("open");
+                k = k.CreateSubKey("command");
+                k.SetValue("", (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe \"%1\""));
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                Log.Error("There was a problem setting file associations", ua);
+            }
         }
     }
 }

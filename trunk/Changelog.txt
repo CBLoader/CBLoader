@@ -1,7 +1,23 @@
-﻿V1.1.2
+﻿V1.1.3
+Added keyfile support. running the application with the -r <fileName> switch will generate a keyfile, running it with 
+the -k <filename> switch will force it to use that keyfile. This is useful in allowing users to move the character
+builder between machines.
+
+CBLoader now no longer writes files directly to the program files directory. Instead it writes files to the users
+application data directory (C:\Users\[username]\AppData\Roaming\CBLoader on my machine). This should work around 
+several vista/windows 7 UAC issues.
+
+A log file is now created in the application directory. In addition, the window will no longer close if an error is
+encountered.
+
+Fixed an issue where having an error, or missing .part file would force a re-merge on every application load. Now
+it will only remerge when changed.
+
+V1.1.2
 Improved the error message when the machine does not have a decryption key
-Added 'patch mode', the -p switch can now be used to patch the character builder on-disk in an attempt to bypass issues some users are having with the loader solution.
-Fixed an issue where newlines were being mishandled during the merge causing several formatting issues inside character builder.
+Added 'patch mode', the -p switch can now be used to patch the character builder on-disk in an attempt to bypass issues 
+some users are having with the loader solution. Fixed an issue where newlines were being mishandled during the merge 
+causing several formatting issues inside character builder.
 
 V1.1.1
 Fixed a crash when the 'Custom' folder did not exist'
