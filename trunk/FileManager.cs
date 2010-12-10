@@ -114,6 +114,7 @@ namespace CharacterBuilderLoader
             // construct the custom rules file
             XDocument main = (XDocument)XDocument.Load(CoreFileName, LoadOptions.PreserveWhitespace);
             foreach (FileInfo fi in customFiles)
+
             {
                 Log.Info("Merging " + fi.Name + "...");
                 try
@@ -213,6 +214,69 @@ namespace CharacterBuilderLoader
                         el.ReplaceWith(customRule);
                 }
             }
+            
+            foreach (XElement customRule in part.Root.Descendants(XName.Get("RemoveNodes"))) // What it says on the box; removes the selected nodes.  NOTE: Do not include <rules> here, because it'll remove all the rules.  Just mention the sub-element.
+            {  // Be careful with this one.  Very Careful.  We probably want to improve the logic here as well.
+                String id = getID(customRule);
+                XElement rule = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id); // match the RulesElement.
+                if (rule != null) //No point removing something that doesn't exist.  Note to Self: Load Order Matters.
+                {
+                    foreach (XElement el in customRule.Descendants())  // Find the node(s) to be removed.
+                    {
+                        String elName = getName(el);
+                        XElement e2 = rule.Descendants().FirstOrDefault(xe => getName(xe) == elName);
+                        if (e2 != null)
+                            e2.Remove();
+                    }
+                }
+            }
+            foreach (XElement customRule in part.Root.Descendants(XName.Get("AppendNodes")))
+            {  // This one isn't anywhere as dangerous as the one above.  Infact, it's safer than using a <RulesElement> to update a rule. (unless order matters.   Note to self: add append-after attribute. 
+                String id = getID(customRule);
+                XElement rule = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id);
+                if (rule != null) //No point removing something that doesn't exist.  Note to Self: Load Order Matters.
+                {
+                    appendToElement(customRule, rule);
+                }
+            }
+
+       }
+
+        /// <summary>
+        /// Takes elements from the first node, and adds them to the second.
+        /// </summary>
+        /// <param name="customRule"></param>
+        /// <param name="rule"></param>
+        private static void appendToElement(XElement customRule, XElement rule)
+        { // this is the recursive guts of <AppendNodes>
+            foreach (XElement el in customRule.Elements())
+            {  // What we do depends on the node in question.
+                String id = getID(el);
+                String name = getName(el);
+
+                if (el.Name == "rules")
+                { // It's the <rules> tag.  Stuff goes inside.
+                    XElement e2 = rule.Element(XName.Get("rules"));
+                    if (e2 == null)
+                        rule.Add(e2 = new XElement(XName.Get("rules")));
+                    appendToElement(el, e2);
+                }
+                else if (el.Name == "Category")
+                { // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
+                    XElement e2 = rule.Element(XName.Get("Category"));
+                    if (e2 == null)
+                        rule.Add(e2 = new XElement(XName.Get("Category")));
+                    e2.Value = e2.Value.Trim(' ', ','); // remove any spaces or commas at the start or end.
+                    e2.Value = e2.Value + "," + el.Value.Trim(' ', ',');  //shove a comma, then the new values (also cleaned up) onto the end.
+                    e2.Value = " " + e2.Value.Trim(' ', ',') + " "; // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
+                }
+                else
+                {
+                    XElement e2;
+                    rule.Add(e2 = new XElement(el.Name, new XAttribute("internal-id", id)));
+                    appendToElement(el, e2);
+                }
+            }
         }
 
         /// <summary>
@@ -223,6 +287,23 @@ namespace CharacterBuilderLoader
         private static string getID(XElement customRule)
         {
             XAttribute attrib = customRule.Attribute(XName.Get("internal-id"));
+            string id = null;
+            if (attrib != null)
+            {
+                id = attrib.Value;
+                //try to find this id in main
+            }
+            return id;
+        }
+
+        /// <summary>
+        /// Gets the ID element from a rule element if available
+        /// </summary>
+        /// <param name="customRule">The rule element</param>
+        /// <returns>The internal id, or null if none is found</returns>
+        private static string getName(XElement customRule)
+        {
+            XAttribute attrib = customRule.Attribute(XName.Get("name"));
             string id = null;
             if (attrib != null)
             {
@@ -302,6 +383,5 @@ namespace CharacterBuilderLoader
                 throw new Exception("General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriat write permissions.", ex);
             }
         }
-
-    }
+   }
 }
