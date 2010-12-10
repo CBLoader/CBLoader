@@ -25,6 +25,7 @@ namespace CharacterBuilderLoader
                 bool loadExec = true;
                 bool forcedReload = false;
                 bool patchFile = false;
+                bool mergelater = true;
 
                 if (args != null && args.Length > 0)
                 {
@@ -53,6 +54,13 @@ namespace CharacterBuilderLoader
                             fm.CustomFolders.Add(getArgString(args, ref i));
                         else if (File.Exists(args[i])) // Otherwise we lose the quotes, and Character builder can't find the file. (if there's whitespace in the path)
                             ProcessManager.EXECUTABLE_ARGS += " \"" + args[i] + "\"";
+                        else if (args[i] == "-?" || args[i] == "-h")
+                        {
+                            displayHelp();
+                            return;
+                        }
+                        else if (args[i] == "-F" && File.Exists(FileManager.MergedPath))
+                            mergelater = true;  // Fast Mode
                         else
                         {
                             ProcessManager.EXECUTABLE_ARGS += " " + args[i];   // character Builder has args as well.  Lets pass unknown ones along.
@@ -60,8 +68,8 @@ namespace CharacterBuilderLoader
                     }
                 }
                 Log.Debug("Checking for merge and extract.");
-                fm.ExtractAndMerge(forcedReload);
-
+                if (!mergelater)
+                    fm.ExtractAndMerge(forcedReload);
                 if (loadExec)
                 {
                     if (patchFile)
@@ -69,6 +77,9 @@ namespace CharacterBuilderLoader
                     else
                         ProcessManager.StartProcessAndPatchMemory();
                 }
+                if (mergelater)
+                    fm.ExtractAndMerge(forcedReload);
+
             }
             catch (Exception e)
             {
