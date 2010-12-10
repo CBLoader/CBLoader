@@ -13,7 +13,7 @@ namespace CharacterBuilderLoader
         private static string LOADED_FILE = "D20RulesEngine.dll";
         private static string LOADED_FILE_BAK = LOADED_FILE + ".bak";
         private static string EXECUTABLE = "CharacterBuilder.exe";
-        private static string EXECUTABLE_ARGS = "";
+        public static string EXECUTABLE_ARGS = "";
 
 
         /// <summary>

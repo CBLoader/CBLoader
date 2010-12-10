@@ -25,6 +25,7 @@ namespace CharacterBuilderLoader
                 bool loadExec = true;
                 bool forcedReload = false;
                 bool patchFile = false;
+
                 if (args != null && args.Length > 0)
                 {
                     for (int i = 0; i < args.Length; i++)
@@ -38,22 +39,23 @@ namespace CharacterBuilderLoader
                         else if (args[i] == "-p")
                             patchFile = true;
                         else if (args[i] == "-u")
-                            FileManager.BasePath = getArgString(args,ref i);
+                            FileManager.BasePath = getArgString(args, ref i);
                         else if (args[i] == "-a")
                             UpdateRegistry();
                         else if (args[i] == "-r")
-                            ExtractKeyFile(getArgString(args,ref i));
+                            ExtractKeyFile(getArgString(args, ref i));
                         else if (args[i] == "-k")
                         {
                             fm.KeyFile = getArgString(args, ref i);
                             fm.ForceUseKeyFile = true;
                         }
                         else if (args[i] == "-f")
-                            fm.CustomFolders.Add(getArgString(args,ref i));
+                            fm.CustomFolders.Add(getArgString(args, ref i));
+                        else if (File.Exists(args[i])) // Otherwise we lose the quotes, and Character builder can't find the file. (if there's whitespace in the path)
+                            ProcessManager.EXECUTABLE_ARGS += " \"" + args[i] + "\"";
                         else
                         {
-                            displayHelp();
-                            return;
+                            ProcessManager.EXECUTABLE_ARGS += " " + args[i];   // character Builder has args as well.  Lets pass unknown ones along.
                         }
                     }
                 }
