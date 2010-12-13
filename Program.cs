@@ -1,16 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using Microsoft.Samples.Debugging.Native;
-using System.Xml.Linq;
-using System.Xml;
-using ApplicationUpdate.Client;
 using System.Security.Cryptography;
+using System.Xml.Linq;
 using Microsoft.Win32;
 
 namespace CharacterBuilderLoader
@@ -25,7 +18,7 @@ namespace CharacterBuilderLoader
                 bool loadExec = true;
                 bool forcedReload = false;
                 bool patchFile = false;
-                bool mergelater = true;
+                bool mergelater = false;
 
                 if (args != null && args.Length > 0)
                 {
@@ -67,6 +60,7 @@ namespace CharacterBuilderLoader
                         }
                     }
                 }
+                CheckWorkingDirectory();
                 Log.Debug("Checking for merge and extract.");
                 if (!mergelater)
                     fm.ExtractAndMerge(forcedReload);
@@ -94,6 +88,25 @@ namespace CharacterBuilderLoader
                     p.StartInfo = new ProcessStartInfo("notepad.exe", Log.LogFile);
                     p.Start();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sometimes CBLoader is launched in the wrong Working Directory.
+        /// This can happen through badly made shortcuts
+        /// And from loading CBLoader through a .dnd4e file.
+        /// This method brings the WD back to where it should be.
+        /// </summary>
+        private static void CheckWorkingDirectory()
+        {
+            Log.Debug("Working Directory is: " + Environment.CurrentDirectory);
+            if (!File.Exists("CharacterBuilder.exe"))
+            {
+                Log.Debug("Character Builder not found.  Resetting Working Directory");
+                Environment.CurrentDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Log.Debug("Working Directory Changed to: " + Environment.CurrentDirectory);
+                if (!File.Exists("CharacterBuilder.exe"))
+                    throw new FormatException("CharacterBuilder.exe not found.  Make sure you installed CBLoader in the correct folder.");
             }
         }
 
