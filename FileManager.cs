@@ -234,7 +234,7 @@ namespace CharacterBuilderLoader
             {  // This one isn't anywhere as dangerous as the one above.  Infact, it's safer than using a <RulesElement> to update a rule. (unless order matters.   Note to self: add append-after attribute. 
                 String id = getID(customRule);
                 XElement rule = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id);
-                if (rule != null) //No point removing something that doesn't exist.  Note to Self: Load Order Matters.
+                if (rule != null) //There's nothing to append this data to, so just ignore it.  Note to Self: Load Order Matters.
                 {
                     appendToElement(customRule, rule);
                 }

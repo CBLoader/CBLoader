@@ -1,4 +1,8 @@
-﻿V1.1.3
+﻿v1.1.4
+Added <AppendNodes> and <RemoveNodes> elements.  Refer to http://cbloadercontentwiki.wikispaces.com/Anatomy+of+a+Part for details.
+Also fixed a bug related to an incorrectly set Working Directory.
+
+V1.1.3
 Added keyfile support. running the application with the -r <fileName> switch will generate a keyfile, running it with 
 the -k <filename> switch will force it to use that keyfile. This is useful in allowing users to move the character
 builder between machines.
