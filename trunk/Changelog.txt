@@ -1,4 +1,7 @@
-﻿v1.1.4
+﻿v1.1.5
+Fixed Issue 23 - AppendNodes does not work when adding extra rules.
+
+v1.1.4
 Added <AppendNodes> and <RemoveNodes> elements.  Refer to http://cbloadercontentwiki.wikispaces.com/Anatomy+of+a+Part for details.
 Also fixed a bug related to an incorrectly set Working Directory.
 
