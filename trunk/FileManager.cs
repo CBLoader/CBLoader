@@ -273,7 +273,10 @@ namespace CharacterBuilderLoader
                 else
                 {
                     XElement e2;
-                    rule.Add(e2 = new XElement(el.Name, new XAttribute("internal-id", id)));
+                    e2 = new XElement(el.Name);
+                    foreach (XAttribute a in el.Attributes())
+                        e2.Add(a);
+                    rule.Add(e2);
                     appendToElement(el, e2);
                 }
             }
