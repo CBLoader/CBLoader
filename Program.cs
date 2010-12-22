@@ -20,11 +20,16 @@ namespace CharacterBuilderLoader
                 bool patchFile = false;
                 bool mergelater = false;
 
+                if (File.Exists("Default.cbconfig"))
+                    loadconfig("Default.cbconfig", ref fm, ref mergelater);
+
                 if (args != null && args.Length > 0)
                 {
                     for (int i = 0; i < args.Length; i++)
                     {
-                        if (args[i] == "-e")
+                        if (args[i] == "-c")
+                            loadconfig(getArgString(args, ref i), ref fm, ref mergelater);
+                        else if (args[i] == "-e")
                             forcedReload = true;
                         else if (args[i] == "-n")
                             loadExec = false;
@@ -73,7 +78,8 @@ namespace CharacterBuilderLoader
                 }
                 if (mergelater)
                     fm.ExtractAndMerge(forcedReload);
-
+                if (File.Exists("dcuhelper.exe")) // Checks for updates.  http://www.donationcoder.com/Software/Mouser/Updater/help/index.html for details.
+                    Process.Start("dcuhelper.exe", "-ri \"CBLoader\" \".\" \".\" -shownew -check -nothingexit"); // Eventually I want to keep CBLoader up to date with it; for now, leave it there for the sole purpose of sharing my homebrew with my players.  The useful thing about DCUpdater is that it can handle multiple update files with no extra effort, just put them into the folder.
             }
             catch (Exception e)
             {
@@ -88,6 +94,41 @@ namespace CharacterBuilderLoader
                     p.StartInfo = new ProcessStartInfo("notepad.exe", Log.LogFile);
                     p.Start();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Loads data from a Config File, should lower the insane amounts of command-line arguments some people are using.
+        /// </summary>
+        /// <param name="p"></param>
+        /// <param name="fm"></param>
+        /// <param name="mergelater"></param>
+        private static void loadconfig(string p, ref FileManager fm, ref bool mergelater)
+        {
+            if (!File.Exists(p))
+            {
+                Log.Info("Config File Does not Exist");
+                return;
+            }
+            Log.Info("Loaded Config File: " + p);
+            XElement settings = XDocument.Load(p).Root;
+            XElement e = null;
+            if ((e = settings.Element("folders")) != null)
+                foreach (XElement folder in e.Elements())
+                { 
+                    // if (folder.Name == "custom") // Future compatibility, in case we want other folders. (Permamerge comes to mind)
+                    fm.CustomFolders.Add(Environment.ExpandEnvironmentVariables(folder.Value)); // So the user can use %appdata% and whatnot; Slightly more portable.
+                }
+            if ((e = settings.Element("FastMode")) != null)
+                mergelater = Boolean.Parse(e.Value);
+            if ((e = settings.Element("BasePath")) != null)
+                FileManager.BasePath = Environment.ExpandEnvironmentVariables(e.Value);
+            if ((e = settings.Element("CBPath")) != null)
+                Environment.CurrentDirectory = Environment.ExpandEnvironmentVariables(e.Value);
+            if ((e = settings.Element("keyfile")) != null)
+            {
+                fm.KeyFile = Environment.ExpandEnvironmentVariables(e.Value);
+                fm.ForceUseKeyFile = true;
             }
         }
 
