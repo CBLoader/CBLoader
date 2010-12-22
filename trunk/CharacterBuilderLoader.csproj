@@ -111,6 +111,9 @@
     <None Include="Custom\sample.part">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="default.cbconfig">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="icons\hres-huge.ico" />
     <Content Include="Changelog.txt" />
     <Content Include="gpl-2.0.txt">

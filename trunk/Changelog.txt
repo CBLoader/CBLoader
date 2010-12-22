@@ -1,4 +1,9 @@
-﻿v1.1.5
+﻿v1.1.6
+Added Config File support.  
+  Note that it does not yet handle every possible command line option.
+  Options such as Hard-Patch will probably never exist in config files, for example.
+
+v1.1.5
 Fixed Issue 23 - AppendNodes does not work when adding extra rules.
 
 v1.1.4
