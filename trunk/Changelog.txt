@@ -1,7 +1,15 @@
 ﻿v1.1.6
-Added Config File support.  
+The loader will now merge less frequently. If you are continually modifying a single file, you will notice that only that file will be merged reducing the wait time caused by merging all .parts in previous versions. 
+
+Added Config File support to enable users to bypass the command line. Create a file named default.cbconfig to use it. 
   Note that it does not yet handle every possible command line option.
   Options such as Hard-Patch will probably never exist in config files, for example.
+  Refer to  http://cbloadercontentwiki.wikispaces.com/Config+Files for a description
+
+Adjusted the loader such that if a file named cbloader.keyfile exists with cbloader.exe, it will automatically attempt to
+use that file as a keyfile without the use of the -k command line option
+
+Deleting a .part file now forces a re-merge
 
 v1.1.5
 Fixed Issue 23 - AppendNodes does not work when adding extra rules.
@@ -24,6 +32,9 @@ encountered.
 
 Fixed an issue where having an error, or missing .part file would force a re-merge on every application load. Now
 it will only remerge when changed.
+
+Added the -a switch, which will switch the file association for .dnd4e (saved character files) from the standard
+character builder to cbloader.exe (Submitted by YeOldSteve)
 
 V1.1.2
 Improved the error message when the machine does not have a decryption key

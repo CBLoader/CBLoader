@@ -57,7 +57,15 @@ namespace CharacterBuilderLoader
             int tabCount = 0;
             while (current != null)
             {
-                sb.AppendLine("".PadLeft(tabCount * 3, ' ') + e.Message);
+                sb.Append("Inner Exception: ");
+                sb.AppendLine("".PadLeft(tabCount * 3, ' ') + current.Message);
+                if (VerboseMode)
+                {
+                    sb.AppendLine("".PadLeft(tabCount * 3, ' ') + current.StackTrace);
+                    sb.AppendLine("".PadLeft(80, '-'));
+                    sb.AppendLine();
+                }
+
                 current = current.InnerException;
                 tabCount++;
             }

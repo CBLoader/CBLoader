@@ -15,74 +15,34 @@ namespace CharacterBuilderLoader
             try
             {
                 FileManager fm = new FileManager();
-                bool loadExec = true;
-                bool forcedReload = false;
-                bool patchFile = false;
-                bool mergelater = false;
 
-                if (File.Exists("Default.cbconfig"))
-                    loadconfig("Default.cbconfig", ref fm, ref mergelater);
-
-                if (args != null && args.Length > 0)
-                {
-                    for (int i = 0; i < args.Length; i++)
-                    {
-                        if (args[i] == "-c")
-                            loadconfig(getArgString(args, ref i), ref fm, ref mergelater);
-                        else if (args[i] == "-e")
-                            forcedReload = true;
-                        else if (args[i] == "-n")
-                            loadExec = false;
-                        else if (args[i] == "-v")
-                            Log.VerboseMode = true;
-                        else if (args[i] == "-p")
-                            patchFile = true;
-                        else if (args[i] == "-u")
-                            FileManager.BasePath = getArgString(args, ref i);
-                        else if (args[i] == "-a")
-                            UpdateRegistry();
-                        else if (args[i] == "-r")
-                            ExtractKeyFile(getArgString(args, ref i));
-                        else if (args[i] == "-k")
-                        {
-                            fm.KeyFile = getArgString(args, ref i);
-                            fm.ForceUseKeyFile = true;
-                        }
-                        else if (args[i] == "-f")
-                            fm.CustomFolders.Add(getArgString(args, ref i));
-                        else if (File.Exists(args[i])) // Otherwise we lose the quotes, and Character builder can't find the file. (if there's whitespace in the path)
-                            ProcessManager.EXECUTABLE_ARGS += " \"" + args[i] + "\"";
-                        else if (args[i] == "-?" || args[i] == "-h")
-                        {
-                            displayHelp();
-                            return;
-                        }
-                        else if (args[i] == "-F" && File.Exists(FileManager.MergedPath))
-                            mergelater = true;  // Fast Mode
-                        else
-                        {
-                            ProcessManager.EXECUTABLE_ARGS += " " + args[i];   // character Builder has args as well.  Lets pass unknown ones along.
-                        }
-                    }
-                }
+                StartupFlags sf = new StartupFlags();
+                if(!sf.LoadFromConfig(fm) || !sf.ParseCmdArgs(args, fm))
+                    return;
+                
                 CheckWorkingDirectory();
-                Log.Debug("Checking for merge and extract.");
-                if (!mergelater)
-                    fm.ExtractAndMerge(forcedReload);
-                if (loadExec)
+                if (!sf.Mergelater)
+                    fm.ExtractAndMerge(sf.ForcedReload);
+                if (sf.LoadExec)
                 {
-                    if (patchFile)
+                    if (sf.PatchFile)
                         ProcessManager.StartProcessAndPatchFile();
                     else
                         ProcessManager.StartProcessAndPatchMemory();
                 }
-                if (mergelater)
-                    fm.ExtractAndMerge(forcedReload);
-                if (File.Exists("dcuhelper.exe")) // Checks for updates.  http://www.donationcoder.com/Software/Mouser/Updater/help/index.html for details.
-                    Process.Start("dcuhelper.exe", "-ri \"CBLoader\" \".\" \".\" -shownew -check -nothingexit"); // Eventually I want to keep CBLoader up to date with it; for now, leave it there for the sole purpose of sharing my homebrew with my players.  The useful thing about DCUpdater is that it can handle multiple update files with no extra effort, just put them into the folder.
+                if (sf.Mergelater)
+                    fm.ExtractAndMerge(sf.ForcedReload);
+
+                // From Jeff: this is kinda creepy to have. We'll leave it for now though.
+                // Checks for updates.  http://www.donationcoder.com/Software/Mouser/Updater/help/index.html for details.
+                if (File.Exists("dcuhelper.exe"))
+                    // Eventually I want to keep CBLoader up to date with it; for now, leave it there for the sole 
+                    // purpose of sharing my homebrew with my players.  The useful thing about DCUpdater is that it can handle multiple update files with no extra effort, just put them into the folder.
+                    Process.Start("dcuhelper.exe", "-ri \"CBLoader\" \".\" \".\" -shownew -check -nothingexit"); 
             }
             catch (Exception e)
             {
+                
                 Log.Error(String.Empty, e);
             }
             if (Log.ErrorLogged)
@@ -94,41 +54,6 @@ namespace CharacterBuilderLoader
                     p.StartInfo = new ProcessStartInfo("notepad.exe", Log.LogFile);
                     p.Start();
                 }
-            }
-        }
-
-        /// <summary>
-        /// Loads data from a Config File, should lower the insane amounts of command-line arguments some people are using.
-        /// </summary>
-        /// <param name="p"></param>
-        /// <param name="fm"></param>
-        /// <param name="mergelater"></param>
-        private static void loadconfig(string p, ref FileManager fm, ref bool mergelater)
-        {
-            if (!File.Exists(p))
-            {
-                Log.Info("Config File Does not Exist");
-                return;
-            }
-            Log.Info("Loaded Config File: " + p);
-            XElement settings = XDocument.Load(p).Root;
-            XElement e = null;
-            if ((e = settings.Element("folders")) != null)
-                foreach (XElement folder in e.Elements())
-                { 
-                    // if (folder.Name == "custom") // Future compatibility, in case we want other folders. (Permamerge comes to mind)
-                    fm.CustomFolders.Add(Environment.ExpandEnvironmentVariables(folder.Value)); // So the user can use %appdata% and whatnot; Slightly more portable.
-                }
-            if ((e = settings.Element("FastMode")) != null)
-                mergelater = Boolean.Parse(e.Value);
-            if ((e = settings.Element("BasePath")) != null)
-                FileManager.BasePath = Environment.ExpandEnvironmentVariables(e.Value);
-            if ((e = settings.Element("CBPath")) != null)
-                Environment.CurrentDirectory = Environment.ExpandEnvironmentVariables(e.Value);
-            if ((e = settings.Element("keyfile")) != null)
-            {
-                fm.KeyFile = Environment.ExpandEnvironmentVariables(e.Value);
-                fm.ForceUseKeyFile = true;
             }
         }
 
@@ -151,19 +76,13 @@ namespace CharacterBuilderLoader
             }
         }
 
-        private static string getArgString(string[] args, ref int i)
-        {
-            if (args.Length > i + 1)
-                return args[++i];
-            else {
-                displayHelp();
-                throw new FormatException("Invalid Arguments Specified");
-            }
-        }
 
-        private static void displayHelp()
+        /// <summary>
+        /// Displays the help text for the commandline arguments.
+        /// </summary>
+        public static void DisplayHelp()
         {
-            Log.Info("Usage: CBLoader.exe [-p] [-e] [-n] [-v] [-a] [-r keyFile] [-k keyFile] [-u userFolder] [-f customFolder] [-h]");
+            Log.Info("Usage: CBLoader.exe [-p] [-e] [-n] [-v] [-a] [-r keyFile] [-k keyFile] [-u userFolder] [-f customFolder] [-fm] [-h] [CBArgs]");
             Log.Info("\t-p\tUse Hard Patch mode.");
             Log.Info("\t-e\tRe-Extract and Re-Merge the xml files");
             Log.Info("\t-n\tDo not load the executable");
@@ -173,59 +92,10 @@ namespace CharacterBuilderLoader
             Log.Info("\t-k\tUse a keyfile instead of the registry for decryption.");
             Log.Info("\t-u\tSpecifies the directory used to hold working files Defaults to the user directory.");
             Log.Info("\t-f\tSpecifies a folder containing custom rules files. This switch can be specified multiple times");
+            Log.Info("\tCBArgs\tAny arguments int the list not recognized by cbloader will be passed on to the character builder application.");            
+            Log.Info("\t-f\tLaunches Character builder first, then merges files. The merged files will not show until you restart character builder.");
             Log.Info("\t-h\tDisplay this help.");
         }
 
-        private static void ExtractKeyFile(string filename)
-        {
-            RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")
-                .OpenSubKey(FileManager.APPLICATION_ID);
-            string currentVersion = rk.GetValue(null).ToString();
-            string encryptedKey = rk.OpenSubKey(currentVersion).GetValue(null).ToString();
-            byte[] stuff = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
-            byte[] base64Str = Convert.FromBase64String(encryptedKey);
-            string realKey = Convert.ToBase64String(ProtectedData.Unprotect(base64Str, stuff, DataProtectionScope.LocalMachine));
-            XDocument xd = new XDocument();
-            XElement applications = new XElement(XName.Get("Applications"));
-            XElement application = new XElement(XName.Get("Application"));
-            application.Add(createAttribute("ID", FileManager.APPLICATION_ID));
-            application.Add(createAttribute("CurrentUpdate", currentVersion));
-            application.Add(createAttribute("InProgress", "true"));
-            application.Add(createAttribute("InstallStage", "Complete"));
-            application.Add(createAttribute("InstallDate", DateTime.Now.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK")));
-            XElement update = new XElement(XName.Get("Update" + currentVersion));
-            update.Add(realKey);
-            application.Add(update);
-            applications.Add(application);
-            xd.Add(applications);
-            xd.Save(filename);
-        }
-
-        private static XAttribute createAttribute(string name, string value)
-        {
-            return new XAttribute(XName.Get(name), value);
-        }
-
-
-        /// <summary>
-        /// Sets .dnd4e File Association to CBLoader.
-        /// This means that the user can double-click a character file and launch CBLoader.
-        /// </summary>
-        public static void UpdateRegistry()
-        { // I'm not going to bother explaining File Associations. Either look it up yourself, or trust me that it works.
-            try // Changing HKCL needs admin permissions
-            {
-                Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".dnd4e");
-                k.SetValue("", ".dnd4e");
-                k = k.CreateSubKey("shell");
-                k = k.CreateSubKey("open");
-                k = k.CreateSubKey("command");
-                k.SetValue("", (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe \"%1\""));
-            }
-            catch (UnauthorizedAccessException ua)
-            {
-                Log.Error("There was a problem setting file associations", ua);
-            }
-        }
     }
 }

@@ -79,22 +79,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CLRDirectory.cs" />
-    <Compile Include="FieldDef.cs" />
+    <Compile Include="cbconfig.cs">
+      <DependentUpon>cbconfig.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="PEFiles\CLRDirectory.cs" />
+    <Compile Include="PEFiles\FieldDef.cs" />
     <Compile Include="FileManager.cs" />
     <Compile Include="LastMergedFileInfo.cs" />
     <Compile Include="Log.cs" />
-    <Compile Include="MetaDataHeader.cs" />
-    <Compile Include="MetaDataStream.cs" />
-    <Compile Include="MetaTableID.cs" />
-    <Compile Include="Method.cs" />
-    <Compile Include="MethodDef.cs" />
-    <Compile Include="PEOptionalHeader.cs" />
-    <Compile Include="PEDataDirectory.cs" />
-    <Compile Include="PEFile.cs" />
-    <Compile Include="PEFileHeader.cs" />
-    <Compile Include="PESection.cs" />
-    <Compile Include="PoundTildeStream.cs" />
+    <Compile Include="PEFiles\MetaDataHeader.cs" />
+    <Compile Include="PEFiles\MetaDataStream.cs" />
+    <Compile Include="PEFiles\MetaTableID.cs" />
+    <Compile Include="PEFiles\Method.cs" />
+    <Compile Include="PEFiles\MethodDef.cs" />
+    <Compile Include="PEFiles\PEOptionalHeader.cs" />
+    <Compile Include="PEFiles\PEDataDirectory.cs" />
+    <Compile Include="PEFiles\PEFile.cs" />
+    <Compile Include="PEFiles\PEFileHeader.cs" />
+    <Compile Include="PEFiles\PESection.cs" />
+    <Compile Include="PEFiles\PoundTildeStream.cs" />
     <Compile Include="ProcessManager.cs" />
     <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Program.cs" />
@@ -104,10 +107,15 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="TableInfo.cs" />
+    <Compile Include="PEFiles\TableInfo.cs" />
+    <Compile Include="StartupFlags.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources\Loader.png" />
+    <None Include="cbconfig.xsd">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Custom\sample.part">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -115,7 +123,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="icons\hres-huge.ico" />
-    <Content Include="Changelog.txt" />
+    <Content Include="Changelog.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="gpl-2.0.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
