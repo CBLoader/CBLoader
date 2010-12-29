@@ -18,13 +18,16 @@ namespace CharacterBuilderLoader
     {
         public const string APPLICATION_ID = "2a1ddbc4-4503-4392-9548-d0010d1ba9b1";
         public const string ENCRYPTED_FILENAME = "combined.dnd40.encrypted";
+        private const string GENERAL_EXTRACT_ERROR = "General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriate write permissions.";
+        private const string DECRYPT_ERROR = "Error decrypting the rules file. This usually indicates a key problem. Check into using a keyfile!";
+            
         public readonly Guid applicationID = new Guid(APPLICATION_ID);
+
 
         private List<string> customFolders;
         private static XmlSerializer mergedSerializer = new XmlSerializer(typeof(List<LastMergedFileInfo>));
         private List<LastMergedFileInfo> currentlyMerged;
 
-        public bool ForceUseKeyFile { get; set; }
         public string KeyFile { get; set; }
 
         private static string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\CBLoader\\";
@@ -54,11 +57,10 @@ namespace CharacterBuilderLoader
 
         public FileManager()
         {
-            KeyFile = "ApplicationKey.update";
+            KeyFile = BasePath +  "cbloader.keyfile";
             if (!Directory.Exists(BasePath))
-            {
                 Directory.CreateDirectory(BasePath);
-            }
+
             if (File.Exists(MergedFileInfo))
             {
                 using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
@@ -88,6 +90,7 @@ namespace CharacterBuilderLoader
         /// </summary>
         public void ExtractAndMerge(bool forced)
         {
+            Log.Debug("Checking for merge and extract.");
             ExtractFile(forced);
             MergeFiles(forced);
         }
@@ -105,44 +108,41 @@ namespace CharacterBuilderLoader
             List<FileInfo> customFiles = customFolders.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
             customFiles.Add(new FileInfo(PartFileName));
+
+            // bail out if nothing is modified
             if (!forced && File.Exists(MergedPath) && currentlyMerged.Count > 0)
             {
-                if (customFiles.TrueForAll(FileWasMerged))
+                if (customFiles.TrueForAll(FileWasMerged) && currentlyMerged.TrueForAll(MergedFileExists(customFiles)))
                     return;
             }
-            currentlyMerged.Clear();
-            // construct the custom rules file
-            XDocument main = (XDocument)XDocument.Load(CoreFileName, LoadOptions.PreserveWhitespace);
-            foreach (FileInfo fi in customFiles)
 
-            {
-                Log.Info("Merging " + fi.Name + "...");
-                try
-                {
-                    XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                    MergePart(customContent, main);
-                    currentlyMerged.Add(new LastMergedFileInfo()
-                    {
-                        FileName = fi.FullName,
-                        LastTouched = fi.LastWriteTime
-                    });
-                }
-                catch (Exception e)
-                {
-                    currentlyMerged.Add(new LastMergedFileInfo()
-                    {
-                        FileName = fi.FullName,
-                        LastTouched = DateTime.MinValue
-                    });
-                    Log.Error("ERROR LOADING FILE: ", e);
-                }
+            // construct the custom rules file
+            MergeFiles(customFiles);
+        }
+
+        /// <summary>
+        /// Merges the specified files
+        /// </summary>
+        private void MergeFiles(List<FileInfo> customFiles)
+        {
+            var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
+            string fileName = GetIntermediaryFilename(files);
+            XDocument main = GetBaseDocument(fileName);
+
+            // Save the unchanged files in a temp document for next time.
+            if (!File.Exists(fileName)) {
+                foreach (FileInfo fi in files.First())
+                    MergeFile(main, fi);
+                SaveDocument(main, fileName);
             }
-            using (XmlTextWriter xw = new XmlTextWriter(MergedPath, Encoding.UTF8))
-            {
-                xw.Formatting = Formatting.Indented;
-                SaveDocument(xw, main.Root);
-            }
-            //            main.Save(FINAL_FILENAME,SaveOptions.DisableFormatting);
+
+            // Merge in the modified files
+            if(files.Count() > 1)
+                foreach (FileInfo fi in files.Skip(1).First())
+                    MergeFile(main, fi);
+
+            SaveDocument(main, MergedPath);
+
             using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
             {
                 mergedSerializer.Serialize(sw, currentlyMerged);
@@ -150,7 +150,85 @@ namespace CharacterBuilderLoader
         }
 
         /// <summary>
-        /// Writing this out via an xmlwriter, XDocument.Save overrides important line-ending information
+        /// Merges the specified file into the main document
+        /// </summary>
+        private void MergeFile(XDocument main, FileInfo fi)
+        {
+            try
+            {
+                Log.Info("Merging " + fi.Name + "...");
+                XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
+                MergePart(customContent, main);
+                updateMergedList(fi.FullName, fi.LastWriteTime);
+            }
+            catch (Exception e)
+            {
+                updateMergedList(fi.FullName, DateTime.MinValue);
+                Log.Error("ERROR LOADING FILE: ", e);
+            }
+        }
+
+        private void updateMergedList(String fileName, DateTime lasttouched)
+        {
+            int index = currentlyMerged.FindIndex(lmf => lmf.FileName == fileName);
+            LastMergedFileInfo lmfi = new LastMergedFileInfo()
+                {
+                    FileName = fileName,
+                    LastTouched = lasttouched,
+                };
+            if (index == -1)
+                currentlyMerged.Add(lmfi);
+            else
+                currentlyMerged[index] = lmfi;
+        }
+
+        /// <summary>
+        /// Gets the base document to merge from. Attempt to use an intermediary document which should contain all
+        /// merged files that have not been changed. This is useful if 1 document is actively being changed while
+        /// all other documents remain the same.
+        /// </summary>
+        /// <param name="customFiles"></param>
+        /// <returns></returns>
+        private XDocument GetBaseDocument(String fileName)
+        {
+            if (!File.Exists(fileName))
+            {
+                // clear out any old tmp files
+                foreach (string file in Directory.GetFiles(FileManager.BasePath, "*.tmp"))
+                    File.Delete(file);
+                fileName = CoreFileName;
+            }
+            return (XDocument)XDocument.Load(fileName, LoadOptions.PreserveWhitespace);
+        }
+
+        private static string GetIntermediaryFilename(IEnumerable<IGrouping<bool, FileInfo>> files)
+        {
+            StringBuilder mergeName = new StringBuilder();
+            foreach (var mergedFile in files.First())
+                mergeName.Append(mergedFile.FullName + "**");
+            string fileName = Convert.ToBase64String(
+                new SHA1CryptoServiceProvider()
+                 .ComputeHash(
+                     Encoding.ASCII.GetBytes(
+                         mergeName.ToString()))).Replace("+", "-").Replace("/", "_");
+            fileName = fileName + ".tmp";
+            return FileManager.BasePath + fileName;
+        }
+
+        /// <summary>
+        /// Saves the specified document to the specified filename
+        /// </summary>
+        private void SaveDocument(XDocument main, string filename)
+        {
+            using (XmlTextWriter xw = new XmlTextWriter(filename, Encoding.UTF8))
+            {
+                xw.Formatting = Formatting.Indented;
+                SaveDocument(xw, main.Root);
+            }
+        }
+
+        /// <summary>
+        /// Writing this out via an xmlwriter, XDocument.Save overrites important line-ending information
         /// </summary>
         /// <param name="xw"></param>
         /// <param name="parent"></param>
@@ -185,6 +263,12 @@ namespace CharacterBuilderLoader
                 return new FileInfo[0];
         }
 
+
+        private static Predicate<LastMergedFileInfo> MergedFileExists(List<FileInfo> customFiles)
+        {
+            return lmf => customFiles.Any(fi => fi.FullName.ToLower() == lmf.FileName.ToLower());
+        }
+
         private bool FileWasMerged(FileInfo fi)
         {
             LastMergedFileInfo lmf = currentlyMerged.FirstOrDefault(lmfi => lmfi.FileName.ToLower() == fi.FullName.ToLower());
@@ -200,84 +284,83 @@ namespace CharacterBuilderLoader
         /// <param name="main"></param>
         private void MergePart(XDocument part, XDocument main)
         {
-            // replace all main elements with part elements having the same internal-id
-            foreach (XElement customRule in part.Root.Descendants(XName.Get("RulesElement")))
-            {
-
-                string id = getID(customRule);
+            foreach(XElement partElement in part.Root.Elements()) {
+                string id = getID(partElement);
                 if (id != null)
                 {
-                    XElement el = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id);
-                    if (el == null)
-                        main.Root.Add(customRule);
-                    else
-                        el.ReplaceWith(customRule);
-                }
-            }
-            
-            foreach (XElement customRule in part.Root.Descendants(XName.Get("RemoveNodes"))) // What it says on the box; removes the selected nodes.  NOTE: Do not include <rules> here, because it'll remove all the rules.  Just mention the sub-element.
-            {  // Be careful with this one.  Very Careful.  We probably want to improve the logic here as well.
-                String id = getID(customRule);
-                XElement rule = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id); // match the RulesElement.
-                if (rule != null) //No point removing something that doesn't exist.  Note to Self: Load Order Matters.
-                {
-                    foreach (XElement el in customRule.Descendants())  // Find the node(s) to be removed.
-                    {
-                        String elName = getName(el);
-                        XElement e2 = rule.Descendants().FirstOrDefault(xe => getName(xe) == elName);
-                        if (e2 != null)
-                            e2.Remove();
+                    XElement mainElement = main.Root.Descendants("RulesElement").FirstOrDefault(xe => getID(xe) == id);
+                    if(mainElement != null) {
+                        switch(partElement.Name.LocalName) { 
+                            case "RulesElement": mainElement.ReplaceWith(partElement); break;
+                            case "RemoveNodes": removeElement(partElement, mainElement); break;
+                            case "AppendNodes": appendToElement(partElement, mainElement); break;
+                        }
                     }
+                    else if(partElement.Name == "RulesElement") 
+                        main.Root.Add(partElement);
                 }
             }
-            foreach (XElement customRule in part.Root.Descendants(XName.Get("AppendNodes")))
-            {  // This one isn't anywhere as dangerous as the one above.  Infact, it's safer than using a <RulesElement> to update a rule. (unless order matters.   Note to self: add append-after attribute. 
-                String id = getID(customRule);
-                XElement rule = main.Root.Descendants(XName.Get("RulesElement")).FirstOrDefault(xe => getID(xe) == id);
-                if (rule != null) //There's nothing to append this data to, so just ignore it.  Note to Self: Load Order Matters.
-                {
-                    appendToElement(customRule, rule);
-                }
-            }
-
        }
+
+        /// <summary>
+        /// Removes the element
+        /// </summary>
+        /// <param name="partElement"></param>
+        /// <param name="mainElement"></param>
+        private static void removeElement(XElement partElement, XElement mainElement)
+        {
+            foreach (XElement el in partElement.Descendants())  // Find the node(s) to be removed.
+            {
+                String elName = getName(el);
+                XElement e2 = mainElement.Descendants().FirstOrDefault(xe => getName(xe) == elName);
+                if (e2 != null)
+                    e2.Remove();
+            }
+        }
 
         /// <summary>
         /// Takes elements from the first node, and adds them to the second.
         /// </summary>
-        /// <param name="customRule"></param>
-        /// <param name="rule"></param>
-        private static void appendToElement(XElement customRule, XElement rule)
-        { // this is the recursive guts of <AppendNodes>
-            foreach (XElement el in customRule.Elements())
-            {  // What we do depends on the node in question.
-                String id = getID(el);
-                String name = getName(el);
+        /// <param name="partRule"></param>
+        /// <param name="mainRule"></param>
+        private static void appendToElement(XElement partRule, XElement mainRule)
+        { 
+            // this is the recursive guts of <AppendNodes>
+            foreach (XElement partChild in partRule.Elements())
+            {  
+                // What we do depends on the node in question.
+                String id = getID(partChild);
+                String name = getName(partChild);
 
-                if (el.Name == "rules")
-                { // It's the <rules> tag.  Stuff goes inside.
-                    XElement e2 = rule.Element(XName.Get("rules"));
+                if (partChild.Name == "rules")
+                { 
+                    // It's the <rules> tag.  Stuff goes inside.
+                    XElement e2 = mainRule.Element("rules");
                     if (e2 == null)
-                        rule.Add(e2 = new XElement(XName.Get("rules")));
-                    appendToElement(el, e2);
+                        mainRule.Add(e2 = new XElement("rules"));
+                    appendToElement(partChild, e2);
                 }
-                else if (el.Name == "Category")
-                { // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
-                    XElement e2 = rule.Element(XName.Get("Category"));
+                else if (partChild.Name == "Category")
+                { 
+                    // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
+                    XElement e2 = mainRule.Element("Category");
                     if (e2 == null)
-                        rule.Add(e2 = new XElement(XName.Get("Category")));
-                    e2.Value = e2.Value.Trim(' ', ','); // remove any spaces or commas at the start or end.
-                    e2.Value = e2.Value + "," + el.Value.Trim(' ', ',');  //shove a comma, then the new values (also cleaned up) onto the end.
-                    e2.Value = " " + e2.Value.Trim(' ', ',') + " "; // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
+                        mainRule.Add(e2 = new XElement("Category"));
+                    
+                    // remove any spaces or commas at the start or end.
+                    e2.Value = e2.Value.Trim(' ', ','); 
+                    //shove a comma, then the new values (also cleaned up) onto the end.
+                    e2.Value = e2.Value + "," + partChild.Value.Trim(' ', ',');  
+                    // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
+                    e2.Value = " " + e2.Value.Trim(' ', ',') + " "; 
                 }
                 else
                 {
-                    XElement e2;
-                    e2 = new XElement(el.Name);
-                    foreach (XAttribute a in el.Attributes())
+                    XElement e2 = new XElement(partChild.Name);
+                    foreach (XAttribute a in partChild.Attributes())
                         e2.Add(a);
-                    rule.Add(e2);
-                    appendToElement(el, e2);
+                    mainRule.Add(e2);
+                    appendToElement(partChild, e2);
                 }
             }
         }
@@ -289,7 +372,7 @@ namespace CharacterBuilderLoader
         /// <returns>The internal id, or null if none is found</returns>
         private static string getID(XElement customRule)
         {
-            XAttribute attrib = customRule.Attribute(XName.Get("internal-id"));
+            XAttribute attrib = customRule.Attribute("internal-id");
             string id = null;
             if (attrib != null)
             {
@@ -306,7 +389,7 @@ namespace CharacterBuilderLoader
         /// <returns>The internal id, or null if none is found</returns>
         private static string getName(XElement customRule)
         {
-            XAttribute attrib = customRule.Attribute(XName.Get("name"));
+            XAttribute attrib = customRule.Attribute("name");
             string id = null;
             if (attrib != null)
             {
@@ -326,24 +409,27 @@ namespace CharacterBuilderLoader
             if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CoreFileName))
             {
                 Log.Info("Extracting " + CoreFileName);
-                try
+                if (!File.Exists(KeyFile))
                 {
-                    if (ForceUseKeyFile)
+                    try
+                    {
+                        TryExtract();
+                    }
+                    catch (CryptographicException)
+                    {
                         ExtractWithKeyFile();
-                    else
-                       TryExtract();
+                    }
+                    catch (ArgumentException)
+                    {
+                        ExtractWithKeyFile();
+                    }
+                    catch (Exception e)
+                    {
+                        throw new Exception(GENERAL_EXTRACT_ERROR, e);
+                    }
                 }
-                catch (CryptographicException)
-                {
+                else
                     ExtractWithKeyFile();
-                }
-                catch (ArgumentException)
-                {
-                    ExtractWithKeyFile();
-                }
-                catch(Exception e) {
-                    throw new Exception("General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriat write permissions.",e);
-                }
                 if (!File.Exists(PartFileName))
                 {
                     using (StreamWriter sw = new StreamWriter(PartFileName))
@@ -376,14 +462,14 @@ namespace CharacterBuilderLoader
             }
             catch (CryptographicException ce)
             {
-                throw new Exception("Error decrypting the rules file. THis usually indicates a key problem. Check into using a keyfile!", ce);
+                throw new Exception(DECRYPT_ERROR, ce);
             }
             catch(ArgumentException ae) {
-                throw new Exception("Error decrypting the rules file. THis usually indicates a key problem. Check into using a keyfile!", ae);
+                throw new Exception(DECRYPT_ERROR, ae);
             }
             catch (Exception ex)
             {
-                throw new Exception("General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriat write permissions.", ex);
+                throw new Exception(GENERAL_EXTRACT_ERROR, ex);
             }
         }
    }

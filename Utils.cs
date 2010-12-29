@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
+using Microsoft.Win32;
+using System.Security.Cryptography;
 
 namespace CharacterBuilderLoader
 {
@@ -38,6 +41,53 @@ namespace CharacterBuilderLoader
     }
     public class Utils
     {
+
+        public static void ExtractKeyFile(string filename)
+        {
+            RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")
+                .OpenSubKey(FileManager.APPLICATION_ID);
+            string currentVersion = rk.GetValue(null).ToString();
+            string encryptedKey = rk.OpenSubKey(currentVersion).GetValue(null).ToString();
+            byte[] stuff = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
+            byte[] base64Str = Convert.FromBase64String(encryptedKey);
+            string realKey = Convert.ToBase64String(ProtectedData.Unprotect(base64Str, stuff, DataProtectionScope.LocalMachine));
+            XDocument xd = new XDocument();
+            XElement applications = new XElement("Applications");
+            XElement application = new XElement("Application");
+            application.Add(new XAttribute("ID", FileManager.APPLICATION_ID));
+            application.Add(new XAttribute("CurrentUpdate", currentVersion));
+            application.Add(new XAttribute("InProgress", "true"));
+            application.Add(new XAttribute("InstallStage", "Complete"));
+            application.Add(new XAttribute("InstallDate", DateTime.Now.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK")));
+            XElement update = new XElement("Update" + currentVersion);
+            update.Add(realKey);
+            application.Add(update);
+            applications.Add(application);
+            xd.Add(applications);
+            xd.Save(filename);
+        }
+
+
+        /// <summary>
+        /// Sets .dnd4e File Association to CBLoader.
+        /// This means that the user can double-click a character file and launch CBLoader.
+        /// </summary>
+        public static void UpdateRegistry()
+        { // I'm not going to bother explaining File Associations. Either look it up yourself, or trust me that it works.
+            try // Changing HKCL needs admin permissions
+            {
+                Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".dnd4e");
+                k.SetValue("", ".dnd4e");
+                k = k.CreateSubKey("shell");
+                k = k.CreateSubKey("open");
+                k = k.CreateSubKey("command");
+                k.SetValue("", (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe \"%1\""));
+            }
+            catch (UnauthorizedAccessException ua)
+            {
+                Log.Error("There was a problem setting file associations", ua);
+            }
+        }
         [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
         public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress,
            uint dwSize, AllocationType flAllocationType, MemoryProtection flProtect);

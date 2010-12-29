@@ -1,6 +1,6 @@
-<Settings>
-  <folders>
-    <custom> custom </custom>
-  </folders>
+<Settings xmlns="http://code.google.com/p/cbloader/cbconfig.xsd">
+  <Folders>
+    <Custom> custom </Custom>
+  </Folders>
   <FastMode> false </FastMode>
 </Settings>
