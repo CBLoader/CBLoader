@@ -112,7 +112,6 @@
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Loader.png" />
     <None Include="cbconfig.xsd">
       <SubType>Designer</SubType>
     </None>

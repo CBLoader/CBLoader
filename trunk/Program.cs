@@ -34,11 +34,17 @@ namespace CharacterBuilderLoader
                     fm.ExtractAndMerge(sf.ForcedReload);
 
                 // From Jeff: this is kinda creepy to have. We'll leave it for now though.
+                //   Stephen:   My only issue is the fact that it pops up as an additional cmd window for a quarter of a second. I'll find a better way of doing it.
+                //     I've now made a better way of doing it. (See FileManager.CheckMetaData).  This should now be obselete, and therefore removable.
                 // Checks for updates.  http://www.donationcoder.com/Software/Mouser/Updater/help/index.html for details.
                 if (File.Exists("dcuhelper.exe"))
+                {
                     // Eventually I want to keep CBLoader up to date with it; for now, leave it there for the sole 
                     // purpose of sharing my homebrew with my players.  The useful thing about DCUpdater is that it can handle multiple update files with no extra effort, just put them into the folder.
-                    Process.Start("dcuhelper.exe", "-ri \"CBLoader\" \".\" \".\" -shownew -check -nothingexit"); 
+                    ProcessStartInfo dcuhelper = new ProcessStartInfo("dcuhelper.exe", "-ri \"CBLoader\" \".\" \".\" -shownew -check -nothingexit");
+                    dcuhelper.WindowStyle = ProcessWindowStyle.Minimized;
+                    Process.Start(dcuhelper);
+                }
             }
             catch (Exception e)
             {
