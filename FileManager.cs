@@ -191,7 +191,8 @@ namespace CharacterBuilderLoader
                 }
                 catch (System.Net.WebException v)
                 {
-                    Log.Error("Failed getting update for " + fi.Name, v);
+                    if (!v.ToString().Contains("could not be resolved")) // No Internet
+                        Log.Error("Failed getting update for " + fi.Name, v);
                 }
             }
             if ((metadata = customContent.Root.Element("Obselete")) != null)
