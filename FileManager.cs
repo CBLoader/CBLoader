@@ -158,6 +158,10 @@ namespace CharacterBuilderLoader
             {
                 Log.Info("Merging " + fi.Name + "...");
                 XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
+                if (CheckMetaData(fi, customContent))
+                {
+                    customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
+                }
                 MergePart(customContent, main);
                 updateMergedList(fi.FullName, fi.LastWriteTime);
             }
@@ -166,6 +170,42 @@ namespace CharacterBuilderLoader
                 updateMergedList(fi.FullName, DateTime.MinValue);
                 Log.Error("ERROR LOADING FILE: ", e);
             }
+        }
+
+        private bool CheckMetaData(FileInfo fi, XDocument customContent)
+        {
+            XElement metadata;
+            if ((metadata = customContent.Root.Element("UpdateInfo")) != null)
+            {
+                try
+                {
+                    System.Net.WebClient wc = new System.Net.WebClient();
+                    string webVersion = wc.DownloadString(metadata.Element("VersionAddress").Value);
+                    string localVersion = metadata.Element("Version").Value;
+                    if (localVersion != webVersion)
+                    {
+                        Log.Info("Found update for " + fi.Name + " (Version " + webVersion + "). Downloading.");
+                        wc.DownloadFile(metadata.Element("PartAddress").Value, Path.Combine(fi.DirectoryName, metadata.Element("Filename").Value));
+                        return true;
+                    }
+                }
+                catch (System.Net.WebException v)
+                {
+                    Log.Error("Failed getting update for " + fi.Name, v);
+                }
+            }
+            if ((metadata = customContent.Root.Element("Obselete")) != null)
+            {
+                string path;
+                if (metadata.Value != "" && File.Exists(path = Path.Combine(fi.DirectoryName, metadata.Value))) // File was renamed?
+                    File.Delete(path);
+                else if (metadata.Value == "")
+                {
+                    fi.Delete();
+                    //return true;  // Actually, don't.
+                }
+            }
+            return false;
         }
 
         private void updateMergedList(String fileName, DateTime lasttouched)
@@ -294,6 +334,7 @@ namespace CharacterBuilderLoader
                             case "RulesElement": mainElement.ReplaceWith(partElement); break;
                             case "RemoveNodes": removeElement(partElement, mainElement); break;
                             case "AppendNodes": appendToElement(partElement, mainElement); break;
+                            case "DeleteElement": deleteElement(partElement, mainElement); break;
                         }
                     }
                     else if(partElement.Name == "RulesElement") 
@@ -326,43 +367,69 @@ namespace CharacterBuilderLoader
         private static void appendToElement(XElement partRule, XElement mainRule)
         { 
             // this is the recursive guts of <AppendNodes>
-            foreach (XElement partChild in partRule.Elements())
-            {  
-                // What we do depends on the node in question.
-                String id = getID(partChild);
-                String name = getName(partChild);
+            foreach (XNode node in partRule.Nodes())
+            {
+                if (node is XElement) // Fix for Issue 48
+                {
+                    XElement partChild = node as XElement;
 
-                if (partChild.Name == "rules")
-                { 
-                    // It's the <rules> tag.  Stuff goes inside.
-                    XElement e2 = mainRule.Element("rules");
-                    if (e2 == null)
-                        mainRule.Add(e2 = new XElement("rules"));
-                    appendToElement(partChild, e2);
+                    // What we do depends on the node in question.
+                    String id = getID(partChild);
+                    String name = getName(partChild);
+
+                    if (partChild.Name == "rules")
+                    {
+                        // It's the <rules> tag.  Stuff goes inside.
+                        XElement e2 = mainRule.Element("rules");
+                        if (e2 == null)
+                            mainRule.Add(e2 = new XElement("rules"));
+                        appendToElement(partChild, e2);
+                    }
+                    else if (partChild.Name == "Category")
+                    {
+                        // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
+                        XElement e2 = mainRule.Element("Category");
+                        if (e2 == null)
+                            mainRule.Add(e2 = new XElement("Category"));
+
+                        // remove any spaces or commas at the start or end.
+                        e2.Value = e2.Value.Trim(' ', ',');
+                        //shove a comma, then the new values (also cleaned up) onto the end.
+                        e2.Value = e2.Value + "," + partChild.Value.Trim(' ', ',');
+                        // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
+                        e2.Value = " " + e2.Value.Trim(' ', ',') + " ";
+                    }
+                    else
+                    {
+                        XElement e2 = new XElement(partChild.Name);
+                        foreach (XAttribute a in partChild.Attributes())
+                            e2.Add(a);
+                        mainRule.Add(e2);
+                        appendToElement(partChild, e2);
+                    }
                 }
-                else if (partChild.Name == "Category")
-                { 
-                    // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
-                    XElement e2 = mainRule.Element("Category");
-                    if (e2 == null)
-                        mainRule.Add(e2 = new XElement("Category"));
-                    
-                    // remove any spaces or commas at the start or end.
-                    e2.Value = e2.Value.Trim(' ', ','); 
-                    //shove a comma, then the new values (also cleaned up) onto the end.
-                    e2.Value = e2.Value + "," + partChild.Value.Trim(' ', ',');  
-                    // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
-                    e2.Value = " " + e2.Value.Trim(' ', ',') + " "; 
+                else if (node is XText)
+                {
+                    XText text = node as XText;
+                    text.Value = text.Value.Trim();
+                    if (text.Value != "") // Don't go sprinkling "   " throughout the xml, please.
+                        mainRule.Add(text);
                 }
                 else
                 {
-                    XElement e2 = new XElement(partChild.Name);
-                    foreach (XAttribute a in partChild.Attributes())
-                        e2.Add(a);
-                    mainRule.Add(e2);
-                    appendToElement(partChild, e2);
+                    mainRule.Add(node);
                 }
             }
+        }
+
+        /// <summary>
+        /// Removes the RulesElement.
+        /// </summary>
+        /// <param name="partRule"></param>
+        /// <param name="mainRule"></param>
+        private static void deleteElement(XElement partRule, XElement mainRule)
+        { // I can't even remember why I implemented this anymore, or what the difference between this and RemoveNodes is. 
+            mainRule.Remove();
         }
 
         /// <summary>
