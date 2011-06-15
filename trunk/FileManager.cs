@@ -96,6 +96,40 @@ namespace CharacterBuilderLoader
         }
 
         /// <summary>
+        /// Check indexes for new files.
+        /// </summary>
+        /// <param name="forced"></param>
+        public void CheckIndexes(bool forced)
+        {
+            List<FileInfo> Indexes = customFolders.SelectMany(
+                GetIndexesFromDirectory).OrderBy(f => f.Name).ToList();
+
+            System.Net.WebClient wc = new System.Net.WebClient();
+            foreach (FileInfo index in Indexes)
+            {
+                XDocument PartIndex = XDocument.Load(index.FullName);
+                CheckMetaData(index, PartIndex);
+                foreach (XElement Part in PartIndex.Root.Elements("Part"))
+                {
+                    try
+                    {
+                        string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                        if (!File.Exists(filename) || forced)
+                            wc.DownloadFile(Part.Element("PartAddress").Value, filename);
+                    }
+                    catch (System.Net.WebException) { }
+                }
+                foreach (XElement Part in PartIndex.Root.Elements("Obselete"))
+                {
+                    string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                    if (File.Exists(filename))
+                        File.Delete(filename);
+                }
+            }
+
+        }
+
+        /// <summary>
         /// Merges the .main file with all known .part files
         /// <param name="forced">if true, the .main and .part files will always be merged. Otherwise they are only merged if
         /// one has been touched.</param>
@@ -158,10 +192,6 @@ namespace CharacterBuilderLoader
             {
                 Log.Info("Merging " + fi.Name + "...");
                 XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                if (CheckMetaData(fi, customContent))
-                {
-                    customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                }
                 MergePart(customContent, main);
                 updateMergedList(fi.FullName, fi.LastWriteTime);
             }
@@ -304,6 +334,13 @@ namespace CharacterBuilderLoader
                 return new FileInfo[0];
         }
 
+        private static FileInfo[] GetIndexesFromDirectory(string fn)
+        {
+            if (Directory.Exists(fn))
+                return new DirectoryInfo(fn).GetFiles("*.index");
+            else
+                return new FileInfo[0];
+        }
 
         private static Predicate<LastMergedFileInfo> MergedFileExists(List<FileInfo> customFiles)
         {
@@ -330,19 +367,38 @@ namespace CharacterBuilderLoader
                 if (id != null)
                 {
                     XElement mainElement = main.Root.Descendants("RulesElement").FirstOrDefault(xe => getID(xe) == id);
-                    if(mainElement != null) {
-                        switch(partElement.Name.LocalName) { 
+                    if (mainElement != null)
+                    {
+                        switch (partElement.Name.LocalName)
+                        {
                             case "RulesElement": mainElement.ReplaceWith(partElement); break;
                             case "RemoveNodes": removeElement(partElement, mainElement); break;
                             case "AppendNodes": appendToElement(partElement, mainElement); break;
                             case "DeleteElement": deleteElement(partElement, mainElement); break;
                         }
                     }
-                    else if(partElement.Name == "RulesElement") 
+                    else if (partElement.Name == "RulesElement")
                         main.Root.Add(partElement);
                 }
+                else if (partElement.Name == "MassAppend")
+                    massAppend(partElement, main);
             }
        }
+
+        /// <summary>
+        /// Appends the contents to multiple elements
+        /// </summary>
+        /// <param name="partElement"></param>
+        private static void massAppend(XElement partElement, XDocument main)
+        {
+            string[] ids = partElement.Attribute("ids").Value.Split(',');
+            IEnumerable<XElement> elements = main.Root.Descendants("RulesElement").Where(xe => ids.Contains(getID(xe)));
+            partElement.Attribute("ids").Remove(); // Don't pass the Attribute around.
+            foreach (XElement mainRule in elements)
+            {
+                appendToElement(partElement, mainRule);
+            }
+        }
 
         /// <summary>
         /// Removes the element
@@ -429,7 +485,7 @@ namespace CharacterBuilderLoader
         /// <param name="partRule"></param>
         /// <param name="mainRule"></param>
         private static void deleteElement(XElement partRule, XElement mainRule)
-        { // I can't even remember why I implemented this anymore, or what the difference between this and RemoveNodes is. 
+        { // Removes the Element completely, whereas RemoveNodes gets rid of contents.
             mainRule.Remove();
         }
 
@@ -539,6 +595,18 @@ namespace CharacterBuilderLoader
             {
                 throw new Exception(GENERAL_EXTRACT_ERROR, ex);
             }
+        }
+
+        public void DoUpdates(bool forced)
+        {
+            List<FileInfo> customFiles = customFolders.SelectMany(
+                GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
+            foreach (FileInfo fi in customFiles)
+            {
+                XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
+                CheckMetaData(fi, customContent);
+            }
+            CheckIndexes(forced);
         }
    }
 }
