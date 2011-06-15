@@ -33,6 +33,9 @@ namespace CharacterBuilderLoader
                 if (sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
 
+                // And here's the better alternated to DCUpdater.
+                fm.DoUpdates(sf.ForcedReload);
+
                 // From Jeff: this is kinda creepy to have. We'll leave it for now though.
                 //   Stephen:   My only issue is the fact that it pops up as an additional cmd window for a quarter of a second. I'll find a better way of doing it.
                 //     I've now made a better way of doing it. (See FileManager.CheckMetaData).  This should now be obselete, and therefore removable.
