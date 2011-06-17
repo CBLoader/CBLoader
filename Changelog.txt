@@ -1,4 +1,13 @@
-﻿v1.1.6
+﻿v1.2
+Fixed a handful of minor bugs.
+The loader can now chain additional config files using the -c argument.
+	You can also launch the config file directly if you update your associations.
+The loader can now update parts using the new <UpdateInfo> element.
+Added a new file type .index to the loader.  This file provides an index of parts that should be installed.
+	It also supports <UpdateInfo>, and can be used to push new parts to users.
+Added the <Obsolete> element.  
+
+v1.1.6
 The loader will now merge less frequently. If you are continually modifying a single file, you will notice that only that file will be merged reducing the wait time caused by merging all .parts in previous versions. 
 
 Added Config File support to enable users to bypass the command line. Create a file named default.cbconfig to use it. 

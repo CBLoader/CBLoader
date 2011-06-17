@@ -119,7 +119,7 @@ namespace CharacterBuilderLoader
                     }
                     catch (System.Net.WebException) { }
                 }
-                foreach (XElement Part in PartIndex.Root.Elements("Obselete"))
+                foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
                 {
                     string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
                     if (File.Exists(filename))
@@ -162,7 +162,6 @@ namespace CharacterBuilderLoader
             var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
             string fileName = GetIntermediaryFilename(files);
             XDocument main = GetBaseDocument(fileName);
-
             // Save the unchanged files in a temp document for next time.
             if (!File.Exists(fileName)) {
                 foreach (FileInfo fi in files.First())
@@ -225,7 +224,7 @@ namespace CharacterBuilderLoader
                         Log.Error("Failed getting update for " + fi.Name, v);
                 }
             }
-            if ((metadata = customContent.Root.Element("Obselete")) != null)
+            if ((metadata = customContent.Root.Element("Obsolete")) != null)
             {
                 string path;
                 if (metadata.Value != "" && File.Exists(path = Path.Combine(fi.DirectoryName, metadata.Value))) // File was renamed?
