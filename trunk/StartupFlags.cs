@@ -44,8 +44,12 @@ namespace CharacterBuilderLoader
                         case "-n": this.LoadExec = false; break;
                         case "-v": Log.VerboseMode = true; break;
                         case "-p": this.PatchFile = true; break;
-                        case "-u": FileManager.BasePath = getArgString(args, ref i); break;
                         case "-a": Utils.UpdateRegistry(); break;
+                        case "-u": 
+                            FileManager.BasePath = getArgString(args, ref i);
+                            if (!Directory.Exists(FileManager.BasePath))
+                                Directory.CreateDirectory(FileManager.BasePath);
+                            break;
                         case "-r":
                             fm.KeyFile = getArgString(args, ref i);
                             Utils.ExtractKeyFile(fm.KeyFile);
@@ -55,6 +59,9 @@ namespace CharacterBuilderLoader
                             break;
                         case "-f":
                             fm.CustomFolders.Add(getArgString(args, ref i));
+                            break;
+                        case "-c": // Load a different config file.
+                            LoadFromConfig(fm,getArgString(args, ref i));
                             break;
                         case "-?":
                         case "-h":
@@ -93,11 +100,16 @@ namespace CharacterBuilderLoader
 
         public bool LoadFromConfig(FileManager fm)
         {
+            return LoadFromConfig(fm, CONFIG_FILENAME);  
+        }
+        // The whole point of not using app.config was that we could have more than one.
+        public bool LoadFromConfig(FileManager fm, string ConfigFile)
+        {
             string fileName;
-            if (File.Exists(CONFIG_FILENAME))
-                fileName = CONFIG_FILENAME;
-            else if (File.Exists(FileManager.BasePath + CONFIG_FILENAME))
-                fileName = FileManager.BasePath + CONFIG_FILENAME;
+            if (File.Exists(ConfigFile))
+                fileName = ConfigFile;
+            else if (File.Exists(FileManager.BasePath + ConfigFile))
+                fileName = FileManager.BasePath + ConfigFile;
             else
                 return false;
 
@@ -115,7 +127,11 @@ namespace CharacterBuilderLoader
                 if (settings.AlwaysRemergeSpecified)
                     this.ForcedReload = settings.AlwaysRemerge;
                 if (!String.IsNullOrEmpty(settings.BasePath))
+                {
                     FileManager.BasePath = Environment.ExpandEnvironmentVariables(settings.BasePath);
+                    if (!Directory.Exists(FileManager.BasePath))
+                        Directory.CreateDirectory(FileManager.BasePath);
+                }
                 if (!String.IsNullOrEmpty(settings.CBPath))
                     Environment.CurrentDirectory = Environment.ExpandEnvironmentVariables(settings.CBPath);
                 if (settings.FastModeSpecified)

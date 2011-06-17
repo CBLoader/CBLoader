@@ -12,7 +12,7 @@ namespace CharacterBuilderLoader
         {
             LogFile = FileManager.BasePath + "/log.txt";
             if (File.Exists(LogFile))
-                File.Delete(LogFile);
+                File.WriteAllText(LogFile, "");  // Resets the contents without actually deleting the file.
         }
         public static string LogFile { get; private set; }
         public static bool ErrorLogged { get; private set; }
