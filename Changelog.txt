@@ -1,4 +1,10 @@
-﻿v1.2
+﻿v1.2.1
+CBloader will now remerge after updating.
+Added two new config file options
+	UpdateFirst: Tells CBLoader to check for updates before merging.  Enable this if you don't have trouble with the updater.
+	LaunchBuilder: Tells CBLoader not to launch the character Builder.  Useful if you needed to HardPatch. (Sorry for forgetting this in 1.1.6)
+
+v1.2
 Fixed a handful of minor bugs.
 The loader can now chain additional config files using the -c argument.
 	You can also launch the config file directly if you update your associations.
@@ -6,6 +12,7 @@ The loader can now update parts using the new <UpdateInfo> element.
 Added a new file type .index to the loader.  This file provides an index of parts that should be installed.
 	It also supports <UpdateInfo>, and can be used to push new parts to users.
 Added the <Obsolete> element.  
+Added the <MassAppend> element.
 
 v1.1.6
 The loader will now merge less frequently. If you are continually modifying a single file, you will notice that only that file will be merged reducing the wait time caused by merging all .parts in previous versions. 

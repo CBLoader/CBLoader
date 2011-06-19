@@ -15,6 +15,7 @@ namespace CharacterBuilderLoader
         public bool ForcedReload { get; set; }
         public bool PatchFile { get; set; }
         public bool Mergelater { get; set; }
+        public bool UpdateFirst { get; set; }
 
         private static readonly XmlSerializer configSerializer = new XmlSerializer(typeof(SettingsType));
 
@@ -24,6 +25,7 @@ namespace CharacterBuilderLoader
             ForcedReload = false;
             PatchFile = false;
             Mergelater = false;
+            UpdateFirst = false;
         }
 
 
@@ -140,6 +142,10 @@ namespace CharacterBuilderLoader
                     fm.KeyFile = Environment.ExpandEnvironmentVariables(settings.KeyFile);
                 if (settings.VerboseModeSpecified)
                     Log.VerboseMode = settings.VerboseMode;
+                if (settings.UpdateFirstSpecified)
+                    this.UpdateFirst = settings.UpdateFirst;
+                if (settings.LaunchBuilderSpecified)
+                    this.LoadExec = settings.LaunchBuilder;
             }
             catch (Exception e)
             {
