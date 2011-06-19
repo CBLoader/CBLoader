@@ -99,10 +99,11 @@ namespace CharacterBuilderLoader
         /// Check indexes for new files.
         /// </summary>
         /// <param name="forced"></param>
-        public void CheckIndexes(bool forced)
+        public bool CheckIndexes(bool forced)
         {
             List<FileInfo> Indexes = customFolders.SelectMany(
                 GetIndexesFromDirectory).OrderBy(f => f.Name).ToList();
+            bool NewFiles = false;
 
             System.Net.WebClient wc = new System.Net.WebClient();
             foreach (FileInfo index in Indexes)
@@ -115,7 +116,10 @@ namespace CharacterBuilderLoader
                     {
                         string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
                         if (!File.Exists(filename) || forced)
+                        {
                             wc.DownloadFile(Part.Element("PartAddress").Value, filename);
+                            NewFiles = true;
+                        }
                     }
                     catch (System.Net.WebException) { }
                 }
@@ -126,7 +130,7 @@ namespace CharacterBuilderLoader
                         File.Delete(filename);
                 }
             }
-
+            return NewFiles;
         }
 
         /// <summary>
@@ -390,7 +394,7 @@ namespace CharacterBuilderLoader
         /// <param name="partElement"></param>
         private static void massAppend(XElement partElement, XDocument main)
         {
-            string[] ids = partElement.Attribute("ids").Value.Split(',');
+            string[] ids = partElement.Attribute("ids").Value.Trim().Split(',');
             IEnumerable<XElement> elements = main.Root.Descendants("RulesElement").Where(xe => ids.Contains(getID(xe)));
             partElement.Attribute("ids").Remove(); // Don't pass the Attribute around.
             foreach (XElement mainRule in elements)
@@ -596,16 +600,18 @@ namespace CharacterBuilderLoader
             }
         }
 
-        public void DoUpdates(bool forced)
+        public bool DoUpdates(bool forced)
         {
             List<FileInfo> customFiles = customFolders.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
+            bool newUpdates = false;
             foreach (FileInfo fi in customFiles)
             {
                 XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                CheckMetaData(fi, customContent);
+               newUpdates = CheckMetaData(fi, customContent) || newUpdates;
             }
-            CheckIndexes(forced);
+            newUpdates = CheckIndexes(forced) || newUpdates;
+            return newUpdates;
         }
    }
 }

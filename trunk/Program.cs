@@ -21,6 +21,8 @@ namespace CharacterBuilderLoader
                     return;
 
                 CheckWorkingDirectory();
+                if (sf.UpdateFirst)
+                    fm.DoUpdates(sf.ForcedReload);
                 if (!sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
                 if (sf.LoadExec)
@@ -34,7 +36,8 @@ namespace CharacterBuilderLoader
                     fm.ExtractAndMerge(sf.ForcedReload);
 
                 // And here's the better alternated to DCUpdater.
-                fm.DoUpdates(sf.ForcedReload);
+                if (fm.DoUpdates(sf.ForcedReload))
+                    fm.ExtractAndMerge(sf.ForcedReload);
 
                 // From Jeff: this is kinda creepy to have. We'll leave it for now though.
                 //   Stephen:   My only issue is the fact that it pops up as an additional cmd window for a quarter of a second. I'll find a better way of doing it.
