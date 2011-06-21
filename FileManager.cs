@@ -81,6 +81,22 @@ namespace CharacterBuilderLoader
             get { return customFolders; }
         }
 
+        public bool AddCustomFolder(string folder)
+        {
+            folder = Environment.ExpandEnvironmentVariables(folder).Trim(); // Expand any Environmental Variables.
+            DirectoryInfo di = new DirectoryInfo(folder);
+            if (!di.Exists)
+                di = new DirectoryInfo(Path.Combine(basePath, folder));
+            if (!di.Exists)
+                di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), folder));
+            if (!di.Exists)
+                return false;
+            folder = di.FullName; // No longer relative, so we can safely change the WD to CharacterBuilder.
+            if (customFolders.Contains(folder)) // We weren't actually checking if a folder got added twice.
+                return false;
+            customFolders.Add(folder);
+            return true;
+        }
         /// <summary>
         /// If necessary extracts the unencrypted data from the zip file. And merges the .main and .part file(s) into the
         /// final file name. 
@@ -117,6 +133,7 @@ namespace CharacterBuilderLoader
                         string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
                         if (!File.Exists(filename) || forced)
                         {
+                            Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
                             wc.DownloadFile(Part.Element("PartAddress").Value, filename);
                             NewFiles = true;
                         }

@@ -14,13 +14,16 @@ namespace CharacterBuilderLoader
         {
             try
             {
+                Environment.SetEnvironmentVariable("CBLOADER", Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location));
+
                 FileManager fm = new FileManager();
-
                 StartupFlags sf = new StartupFlags();
-                if(!sf.LoadFromConfig(fm) || !sf.ParseCmdArgs(args, fm))
+                sf.LoadFromConfig(fm); // Don't require the config file. (Especially before checking we're in the right directory)
+                if (!sf.ParseCmdArgs(args, fm))
                     return;
-
+                
                 CheckWorkingDirectory();
+
                 if (sf.UpdateFirst)
                     fm.DoUpdates(sf.ForcedReload);
                 if (!sf.Mergelater)

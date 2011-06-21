@@ -1,4 +1,15 @@
-﻿v1.2.1
+﻿v1.2.2
+Fixed a handful of config file bugs:
+	CBLoader no longer requires a config file to work. (Issue 40)
+	Relative paths in config files didn't work as expected.
+	default.config didn't not load if WorkingDirectory is elsewhere, and config file is in CBLoader's directory.
+	CBLoader Associations do not work when there is a space in CBLoader's Path. 
+		(This affects both config and dnd4e files)
+		You must run CBLoader with the -a switch for this fix to take effect.
+	New Environmental Variable %CBLOADER% available for your config files. (The directory CBLoader is located in)
+Index Files now tell you when they download new files.
+
+v1.2.1
 CBloader will now remerge after updating.
 Added two new config file options
 	UpdateFirst: Tells CBLoader to check for updates before merging.  Enable this if you don't have trouble with the updater.
