@@ -10,6 +10,7 @@
   <xs:complexType name="SettingsType">
     <xs:sequence>
       <xs:element name="Folders" type="FoldersType" minOccurs="0" />
+      <xs:element name="Ignore" type="IgnoreType" minOccurs="0" />
       <xs:element name="FastMode" type="xs:boolean" minOccurs="0" />
       <xs:element name="BasePath" type="xs:string" minOccurs="0" />
       <xs:element name="CBPath" type="xs:string" minOccurs="0" />
@@ -24,6 +25,12 @@
   <xs:complexType name="FoldersType">
     <xs:sequence>
       <xs:element name="Custom" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="IgnoreType">
+    <xs:sequence>
+      <xs:element name="Part" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

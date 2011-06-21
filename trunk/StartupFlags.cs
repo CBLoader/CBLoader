@@ -127,6 +127,9 @@ namespace CharacterBuilderLoader
                 if (settings.Folders != null)
                     foreach (string customFolder in settings.Folders)
                         fm.AddCustomFolder(customFolder);
+                if (settings.Ignore != null)
+                    foreach (string ignoredPart in settings.Ignore)
+                        fm.IgnoredParts.Add(ignoredPart.ToLower().Trim());
                 if (settings.AlwaysRemergeSpecified)
                     this.ForcedReload = settings.AlwaysRemerge;
                 if (!String.IsNullOrEmpty(settings.BasePath))

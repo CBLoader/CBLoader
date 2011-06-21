@@ -25,6 +25,7 @@ namespace CharacterBuilderLoader
 
 
         private List<string> customFolders;
+        private List<string> ignoredParts;
         private static XmlSerializer mergedSerializer = new XmlSerializer(typeof(List<LastMergedFileInfo>));
         private List<LastMergedFileInfo> currentlyMerged;
 
@@ -71,6 +72,7 @@ namespace CharacterBuilderLoader
             else
                 currentlyMerged = new List<LastMergedFileInfo>();
              customFolders = new List<string>() { "custom" };
+             ignoredParts = new List<string>();
         }
 
         /// <summary>
@@ -79,6 +81,14 @@ namespace CharacterBuilderLoader
         public List<string> CustomFolders
         {
             get { return customFolders; }
+        }
+
+        /// <summary>
+        /// Gets the list of ignored parts.
+        /// </summary>
+        public List<string> IgnoredParts
+        {
+            get { return ignoredParts; }
         }
 
         public bool AddCustomFolder(string folder)
@@ -131,6 +141,8 @@ namespace CharacterBuilderLoader
                     try
                     {
                         string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                        if (ignoredParts.Contains(Part.Element("Filename").Value.ToLower().Trim()))
+                            continue;
                         if (!File.Exists(filename) || forced)
                         {
                             Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
@@ -162,6 +174,7 @@ namespace CharacterBuilderLoader
 
             List<FileInfo> customFiles = customFolders.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
+            customFiles.RemoveAll(f => IgnoredParts.Contains(f.Name.ToLower().Trim()));
             customFiles.Add(new FileInfo(PartFileName));
 
             // bail out if nothing is modified

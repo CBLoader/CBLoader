@@ -1,4 +1,10 @@
-﻿v1.2.2
+﻿v1.2.3
+Added a new config option Ignore.
+	This allows you to list the parts you want to ignore.
+	Ignored Parts will not be downloaded from indexes, and will not be merged if already downloaded.
+	Ignored Parts will still be checked for updates and obseletion.
+
+v1.2.2
 Fixed a handful of config file bugs:
 	CBLoader no longer requires a config file to work. (Issue 40)
 	Relative paths in config files didn't work as expected.
