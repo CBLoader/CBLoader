@@ -26,6 +26,8 @@ public partial class SettingsType {
     
     private string[] foldersField;
     
+    private string[] ignoreField;
+    
     private bool fastModeField;
     
     private bool fastModeFieldSpecified;
@@ -60,6 +62,17 @@ public partial class SettingsType {
         }
         set {
             this.foldersField = value;
+        }
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlArrayItemAttribute("Part", IsNullable=false)]
+    public string[] Ignore {
+        get {
+            return this.ignoreField;
+        }
+        set {
+            this.ignoreField = value;
         }
     }
     
