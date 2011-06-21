@@ -29,7 +29,7 @@ namespace CharacterBuilderLoader
         }
 
 
-
+        /// <summary>
         /// Parses the command line arguments and sets the necessary state flags across the applicaiton.
         /// Returns a structure of startup flags to the caller.
         /// </summary>
@@ -60,7 +60,7 @@ namespace CharacterBuilderLoader
                             fm.KeyFile = getArgString(args, ref i);
                             break;
                         case "-f":
-                            fm.CustomFolders.Add(getArgString(args, ref i));
+                            fm.AddCustomFolder(getArgString(args, ref i));
                             break;
                         case "-c": // Load a different config file.
                             LoadFromConfig(fm,getArgString(args, ref i));
@@ -102,17 +102,18 @@ namespace CharacterBuilderLoader
 
         public bool LoadFromConfig(FileManager fm)
         {
-            return LoadFromConfig(fm, CONFIG_FILENAME);  
+            return LoadFromConfig(fm, CONFIG_FILENAME);
         }
         // The whole point of not using app.config was that we could have more than one.
         public bool LoadFromConfig(FileManager fm, string ConfigFile)
         {
             string fileName;
-            if (File.Exists(ConfigFile))
-                fileName = ConfigFile;
-            else if (File.Exists(FileManager.BasePath + ConfigFile))
-                fileName = FileManager.BasePath + ConfigFile;
-            else
+            fileName = ConfigFile;
+            if (!File.Exists(fileName))
+                fileName = Path.Combine(FileManager.BasePath, ConfigFile);
+            if (!File.Exists(fileName))
+                fileName = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),ConfigFile);
+            if (!File.Exists(fileName))
                 return false;
 
             Log.Debug("Loading Config File: " + fileName);
@@ -125,7 +126,7 @@ namespace CharacterBuilderLoader
                 }
                 if (settings.Folders != null)
                     foreach (string customFolder in settings.Folders)
-                        fm.CustomFolders.Add(Environment.ExpandEnvironmentVariables(customFolder));
+                        fm.AddCustomFolder(customFolder);
                 if (settings.AlwaysRemergeSpecified)
                     this.ForcedReload = settings.AlwaysRemerge;
                 if (!String.IsNullOrEmpty(settings.BasePath))

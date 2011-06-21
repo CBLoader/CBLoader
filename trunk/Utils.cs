@@ -81,14 +81,14 @@ namespace CharacterBuilderLoader
                 k = k.CreateSubKey("shell");
                 k = k.CreateSubKey("open");
                 k = k.CreateSubKey("command");
-                k.SetValue("", (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe \"%1\""));
+                k.SetValue("", "\"" + (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe\" \"%1\""));
                 // And the cbconfig files
                 k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".cbconfig");
                 k.SetValue("", ".cbconfig");
                 k = k.CreateSubKey("shell");
                 k = k.CreateSubKey("open");
                 k = k.CreateSubKey("command");
-                k.SetValue("", (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe -c \"%1\""));
+                k.SetValue("", "\"" + (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe\" -c \"%1\""));
             }
             catch (UnauthorizedAccessException ua)
             {
