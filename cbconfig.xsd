@@ -19,6 +19,7 @@
       <xs:element name="AlwaysRemerge" type="xs:boolean" minOccurs="0" />
       <xs:element name="UpdateFirst" type="xs:boolean" minOccurs="0" />
       <xs:element name="LaunchBuilder" type="xs:boolean" minOccurs="0" />
+      <xs:element name="NewMergeLogic" type="xs:boolean" minOccurs ="0" />
     </xs:sequence>
   </xs:complexType>
 

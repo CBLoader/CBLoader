@@ -23,6 +23,7 @@ namespace CharacterBuilderLoader
                     return;
                 
                 CheckWorkingDirectory();
+                fm.AddCustomFolder("custom");
 
                 if (sf.UpdateFirst)
                     fm.DoUpdates(sf.ForcedReload);

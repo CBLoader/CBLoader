@@ -150,6 +150,8 @@ namespace CharacterBuilderLoader
                     this.UpdateFirst = settings.UpdateFirst;
                 if (settings.LaunchBuilderSpecified)
                     this.LoadExec = settings.LaunchBuilder;
+                if (settings.NewMergeLogicSpecified)
+                    fm.UseNewMergeLogic = settings.NewMergeLogic;
             }
             catch (Exception e)
             {
