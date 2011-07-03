@@ -55,6 +55,7 @@ namespace CharacterBuilderLoader
             get { return BasePath + "combined.dnd40.part"; }
         }
 
+        public bool UseNewMergeLogic { get; set; }
 
         public FileManager()
         {
@@ -71,8 +72,12 @@ namespace CharacterBuilderLoader
             }
             else
                 currentlyMerged = new List<LastMergedFileInfo>();
-             customFolders = new List<string>() { "custom" };
+             customFolders = new List<string>();
              ignoredParts = new List<string>();
+             UseNewMergeLogic = false;
+            string ddi = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi");
+            if (Directory.Exists(ddi))
+                AddCustomFolder(Directory.CreateDirectory(Path.Combine(ddi, "CBLoader")).FullName);
         }
 
         /// <summary>
@@ -196,18 +201,23 @@ namespace CharacterBuilderLoader
             var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
             string fileName = GetIntermediaryFilename(files);
             XDocument main = GetBaseDocument(fileName);
+
+            Dictionary<string, XElement> idDictionary = new Dictionary<string, XElement>();
+
             // Save the unchanged files in a temp document for next time.
             if (!File.Exists(fileName)) {
                 foreach (FileInfo fi in files.First())
-                    MergeFile(main, fi);
+                    MergeFile(main, fi, idDictionary);
+                DeQueueMerges(main, idDictionary);
                 SaveDocument(main, fileName);
             }
 
             // Merge in the modified files
             if(files.Count() > 1)
                 foreach (FileInfo fi in files.Skip(1).First())
-                    MergeFile(main, fi);
-
+                    MergeFile(main, fi,idDictionary);
+            if (UseNewMergeLogic && idDictionary.Keys.FirstOrDefault() != null) // There is no first element, therefore there's nothing in there.  Skip the enumeration.
+                DeQueueMerges(main, idDictionary);
             SaveDocument(main, MergedPath);
 
             using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
@@ -219,19 +229,102 @@ namespace CharacterBuilderLoader
         /// <summary>
         /// Merges the specified file into the main document
         /// </summary>
-        private void MergeFile(XDocument main, FileInfo fi)
+        private void MergeFile(XDocument main, FileInfo fi, Dictionary<string, XElement> idDictionary)
         {
             try
             {
-                Log.Info("Merging " + fi.Name + "...");
+                if (UseNewMergeLogic)
+                    Log.Info("Loading " + fi.Name + "...");
+                else
+                    Log.Info("Merging " + fi.Name + "...");
                 XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                MergePart(customContent, main);
+                if (UseNewMergeLogic)
+                {
+                    QueuePart(customContent, idDictionary);
+                }
+                else
+                    MergePart(customContent, main);
                 updateMergedList(fi.FullName, fi.LastWriteTime);
             }
             catch (Exception e)
             {
                 updateMergedList(fi.FullName, DateTime.MinValue);
                 Log.Error("ERROR LOADING FILE: ", e);
+            }
+        }
+
+        private void QueuePart(XDocument part, Dictionary<string, XElement> idDictionary)
+        {
+            foreach (XElement partElement in part.Root.Elements())
+            {
+                string id = getID(partElement);
+                if (id != null)
+                {
+                    if (idDictionary.ContainsKey(id))
+                        idDictionary[id].Add(partElement);
+                    else
+                        idDictionary.Add(id, new XElement("MergeContainer", partElement));
+                }
+                else if (partElement.Name == "MassAppend")
+                    if (idDictionary.ContainsKey("nullID"))
+                        idDictionary["nullID"].Add(partElement);
+                    else
+                        idDictionary.Add("nullID", new XElement("MergeContainer", partElement));
+            }
+        }
+
+        private void DeQueueMerges(XDocument main, Dictionary<string, XElement> idDictionary)
+        {
+            Log.Info("Applying base elements.");
+            XElement mainElement = main.Root.Elements("RulesElement").First();
+            XNode NextElement;
+            do
+            {
+                XNode prev = mainElement.PreviousNode;
+                NextElement = mainElement.NextNode;
+                while (NextElement != null && !(NextElement is XElement))
+                    NextElement = NextElement.NextNode;
+                string id = getID(mainElement);
+                if (idDictionary.ContainsKey(id))
+                {
+                    foreach (XElement partElement in idDictionary[id].Elements())
+                    {
+                        switch (partElement.Name.LocalName)
+                        {
+                            case "RulesElement": mainElement.ReplaceWith(partElement); break;
+                            case "RemoveNodes": removeElement(partElement, mainElement); break;
+                            case "AppendNodes": appendToElement(partElement, mainElement); break;
+                            case "DeleteElement": deleteElement(partElement, mainElement); break;
+                        }
+                        mainElement = prev.NextNode as XElement; // Lost Parent
+                    }
+                    idDictionary.Remove(id);
+                }
+                if (idDictionary.Keys.FirstOrDefault() == null)
+                    return; // Quick way of aborting if we're done.  Anything more complex isn't really worth it.
+            } while ((mainElement = NextElement as XElement) != null);
+            Log.Info("Applying new elements");
+            foreach (String id in idDictionary.Keys.ToArray())
+            {
+                XElement RulesCollection = idDictionary[id];
+                mainElement = new XElement("RulesElement", new XAttribute("internal-id","deleteme"));
+                main.Root.Add(mainElement);
+                
+                XNode prev = mainElement.PreviousNode;
+                foreach (XElement partElement in RulesCollection.Elements())
+                {
+                    switch (partElement.Name.LocalName)
+                    {
+                        case "RulesElement": mainElement.ReplaceWith(partElement); break;
+                        case "RemoveNodes": removeElement(partElement, mainElement); break;
+                        case "AppendNodes": appendToElement(partElement, mainElement); break;
+                        case "DeleteElement": deleteElement(partElement, mainElement); break;
+                    }
+                    mainElement = prev.NextNode as XElement; // Lost Parent
+                }
+                if (getID(mainElement) == "deleteme")
+                    mainElement.Remove(); // It was only an append.
+                idDictionary.Remove(id);
             }
         }
 
@@ -571,6 +664,15 @@ namespace CharacterBuilderLoader
                     try
                     {
                         TryExtract();
+                    }
+                    catch (IOException e)
+                    {
+                        if (e.Message.Contains("assembly 'ApplicationUpdate.Client"))
+                        {
+                            Log.Info("Copying ApplicationUpdate.Client.dll to CBLoader folder.  The following error is expected.  Just relaunch CBLoader.");
+                            File.Copy("ApplicationUpdate.Client.dll", Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "ApplicationUpdate.Client.dll")); // Get the DLL from the Character Builder Folder.
+                            ExtractWithKeyFile();
+                        }
                     }
                     catch (CryptographicException)
                     {

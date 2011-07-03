@@ -1,4 +1,10 @@
-﻿v1.2.3
+﻿v1.2.4
+Fixed the Double Custom bug that appears to have shown its face. (Not sure why It's only happening now, the bug itself was has been in there since 1.1)
+Added additional default part folder, My Documents\ddi\CBLoader.  
+	This is an alternative for people running CB from Program Files\WotC\Character Builder\CharBuilderFull_p, as UAC prevents the Automatic updater.
+	The default custom folder is still usable.
+
+v1.2.3
 Added a new config option Ignore.
 	This allows you to list the parts you want to ignore.
 	Ignored Parts will not be downloaded from indexes, and will not be merged if already downloaded.
