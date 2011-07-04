@@ -41,7 +41,10 @@ namespace CharacterBuilderLoader
 
                 // And here's the better alternated to DCUpdater.
                 if (fm.DoUpdates(sf.ForcedReload))
+                {
+                    Log.Info("Character Builder has already been launched.\n  The following merges are not a bug, and not slowing down the loading of CB.");
                     fm.ExtractAndMerge(sf.ForcedReload);
+                }
 
                 // From Jeff: this is kinda creepy to have. We'll leave it for now though.
                 //   Stephen:   My only issue is the fact that it pops up as an additional cmd window for a quarter of a second. I'll find a better way of doing it.
