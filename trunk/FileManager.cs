@@ -275,6 +275,8 @@ namespace CharacterBuilderLoader
 
         private void DeQueueMerges(XDocument main, Dictionary<string, XElement> idDictionary)
         {
+            if (idDictionary.Keys.FirstOrDefault() == null)
+                return; // We're not needed here.
             Log.Info("Applying base elements.");
             XElement mainElement = main.Root.Elements("RulesElement").First();
             XNode NextElement;
