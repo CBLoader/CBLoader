@@ -16,6 +16,7 @@ namespace CharacterBuilderLoader
         public bool PatchFile { get; set; }
         public bool Mergelater { get; set; }
         public bool UpdateFirst { get; set; }
+        public bool CheckForUpdates { get; set; }
 
         private static readonly XmlSerializer configSerializer = new XmlSerializer(typeof(SettingsType));
 
@@ -26,6 +27,7 @@ namespace CharacterBuilderLoader
             PatchFile = false;
             Mergelater = false;
             UpdateFirst = false;
+            CheckForUpdates = true;
         }
 
 
@@ -53,11 +55,11 @@ namespace CharacterBuilderLoader
                                 Directory.CreateDirectory(FileManager.BasePath);
                             break;
                         case "-r":
-                            fm.KeyFile = getArgString(args, ref i);
-                            Utils.ExtractKeyFile(fm.KeyFile);
+                            FileManager.KeyFile = getArgString(args, ref i);
+                            Utils.ExtractKeyFile(FileManager.KeyFile);
                             break;
                         case "-k":
-                            fm.KeyFile = getArgString(args, ref i);
+                            FileManager.KeyFile = getArgString(args, ref i);
                             break;
                         case "-f":
                             fm.AddCustomFolder(getArgString(args, ref i));
@@ -72,6 +74,13 @@ namespace CharacterBuilderLoader
                         // Fast Mode
                         case "-fm":
                             this.Mergelater = File.Exists(FileManager.MergedPath); break;
+                        case "+d":
+                            this.UpdateFirst = true;
+                            this.LoadExec = false;
+                            break;
+                        case "-d":
+                            CheckForUpdates = false;
+                            break;
                         default:
                             if (File.Exists(args[i])) // Otherwise we lose the quotes, and Character builder can't find the file. (if there's whitespace in the path)
                                 ProcessManager.EXECUTABLE_ARGS += " \"" + args[i] + "\"";
@@ -143,7 +152,7 @@ namespace CharacterBuilderLoader
                 if (settings.FastModeSpecified)
                     this.Mergelater = settings.FastMode;
                 if (!String.IsNullOrEmpty(settings.KeyFile))
-                    fm.KeyFile = Environment.ExpandEnvironmentVariables(settings.KeyFile);
+                    FileManager.KeyFile = Environment.ExpandEnvironmentVariables(settings.KeyFile);
                 if (settings.VerboseModeSpecified)
                     Log.VerboseMode = settings.VerboseMode;
                 if (settings.UpdateFirstSpecified)

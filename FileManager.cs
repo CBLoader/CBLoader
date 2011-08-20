@@ -27,15 +27,31 @@ namespace CharacterBuilderLoader
         private List<string> customFolders;
         private List<string> ignoredParts;
         private static XmlSerializer mergedSerializer = new XmlSerializer(typeof(List<LastMergedFileInfo>));
-        private List<LastMergedFileInfo> currentlyMerged;
+        private static List<LastMergedFileInfo> currentlyMerged;
 
-        public string KeyFile { get; set; }
+        public static string KeyFile { get; set; }
 
         private static string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\CBLoader\\";
         public static string BasePath
         {
             get { return basePath; }
-            set { basePath = value; }
+            set
+            {
+                basePath = value;
+                KeyFile = BasePath + "cbloader.keyfile";
+                if (!Directory.Exists(BasePath))
+                    Directory.CreateDirectory(BasePath);
+
+                if (File.Exists(MergedFileInfo))
+                {
+                    using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
+                    {
+                        currentlyMerged = (List<LastMergedFileInfo>)mergedSerializer.Deserialize(sr);
+                    }
+                }
+                else
+                    currentlyMerged = new List<LastMergedFileInfo>();
+            }
         }
         public static string MergedPath
         {
@@ -74,7 +90,7 @@ namespace CharacterBuilderLoader
                 currentlyMerged = new List<LastMergedFileInfo>();
              customFolders = new List<string>();
              ignoredParts = new List<string>();
-             UseNewMergeLogic = false;
+             UseNewMergeLogic = true;
             string ddi = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi");
             if (Directory.Exists(ddi))
                 AddCustomFolder(Directory.CreateDirectory(Path.Combine(ddi, "CBLoader")).FullName);
@@ -155,7 +171,11 @@ namespace CharacterBuilderLoader
                             NewFiles = true;
                         }
                     }
-                    catch (System.Net.WebException) { }
+                    catch (System.Net.WebException v)
+                    {
+                        if (v.ToString().Contains("is denied"))
+                            Log.Error("CBLoader could not save the updates to disk.\n\tCheck the index file is somewhere you have write permissions.\n\tWe recommend the My Documents\\ddi\\CBLoader folder", v);
+                    }
                 }
                 foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
                 {
@@ -198,7 +218,12 @@ namespace CharacterBuilderLoader
         /// </summary>
         private void MergeFiles(List<FileInfo> customFiles)
         {
+
             var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
+            
+            if (UseNewMergeLogic) // New merge logic is equally as fast when doing the entire thing, so let's just do that.
+                files = customFiles.GroupBy(fi => false).OrderBy(a => a.Key).Reverse();
+               
             string fileName = GetIntermediaryFilename(files);
             XDocument main = GetBaseDocument(fileName);
 
@@ -302,6 +327,17 @@ namespace CharacterBuilderLoader
                     }
                     idDictionary.Remove(id);
                 }
+                if (idDictionary.ContainsKey("nullID"))
+                {
+                    XElement[] MassAppends = idDictionary["nullID"].Elements().ToArray();
+                    for (int i = 0; i < MassAppends.Length; i++)
+                    {
+                        XElement partElement = MassAppends[i];
+                        string[] ids = partElement.Attribute("ids").Value.Trim().Split(',');
+                        if (ids.Contains(id))
+                            appendToElement(partElement, mainElement);
+                    }
+                }
                 if (idDictionary.Keys.FirstOrDefault() == null)
                     return; // Quick way of aborting if we're done.  Anything more complex isn't really worth it.
             } while ((mainElement = NextElement as XElement) != null);
@@ -349,7 +385,11 @@ namespace CharacterBuilderLoader
                 }
                 catch (System.Net.WebException v)
                 {
-                    if (!v.ToString().Contains("could not be resolved")) // No Internet
+                    if (v.ToString().Contains("could not be resolved")) // No Internet
+                        Log.Debug("No internet access");
+                    else if (v.ToString().Contains("is denied"))
+                        Log.Error("CBLoader could not save the updates to disk.\n\tCheck the part file is not read-only, \n\tand that CBLoader is installed to somewhere you have write permissions.", v);
+                    else
                         Log.Error("Failed getting update for " + fi.Name, v);
                 }
             }
@@ -404,7 +444,7 @@ namespace CharacterBuilderLoader
         {
             StringBuilder mergeName = new StringBuilder();
             foreach (var mergedFile in files.First())
-                mergeName.Append(mergedFile.FullName + "**");
+                mergeName.Append(mergedFile.FullName + mergedFile.LastWriteTime.ToString() + "**");
             string fileName = Convert.ToBase64String(
                 new SHA1CryptoServiceProvider()
                  .ComputeHash(
@@ -745,6 +785,8 @@ namespace CharacterBuilderLoader
                newUpdates = CheckMetaData(fi, customContent) || newUpdates;
             }
             newUpdates = CheckIndexes(forced) || newUpdates;
+            if (newUpdates)
+                new UpdateLog().CreateAndShow(customFiles);
             return newUpdates;
         }
    }

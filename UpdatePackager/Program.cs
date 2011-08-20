@@ -87,6 +87,7 @@ namespace UpdatePackager
                         {  } // Meh.
 
                     UpdateInfo.Element("Version").Value = (int.Parse(UpdateInfo.Element("Version").Value) + 1).ToString();
+                    
                     part.Save(file);
                     part.Save(DropboxFile);
                     File.WriteAllText(DropboxFile.Replace(".part", ".txt"), UpdateInfo.Element("Version").Value);
@@ -95,7 +96,7 @@ namespace UpdatePackager
                 }
                 foreach (XElement part in index.Root.Elements("Part"))
                 {
-                    if (!Parts.Contains(part.Element("Filename").Value))
+                    if (!Parts.Contains(part.Element("Filename").Value) && Path.GetExtension(part.Element("Filename").Value) == "part")
                         part.Name = "Obsolete";
                 }
                 foreach (XElement part in index.Root.Elements("Obselete"))

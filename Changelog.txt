@@ -1,4 +1,15 @@
-﻿v1.2.4.1
+﻿v1.3.0
+A new merge process, which will improve your merge times exponentially.
+Added two command line arguments: (Issue 64)
+ -d Don't download.
+ +d Only download [shortcut for Update First + No Launch]
+Added <Changelog> element.
+Fixed Issue 37: Changed file not being reloaded
+Fixed Issue 41: Merge order is strange
+Fixed Issue 69: Updater Mechanism does not provide enough information when it fails.
+Fixed issue 72: Various issues related to setting a non-default basepath 
+
+v1.2.4.1
 "Applying base elements" was popping up when it shouldn't have.
 Clarified the secondary merge process.
 (Yes, the entirity of this release was to remove one log message, and add a different one, hence why I don't want to bump the version)
