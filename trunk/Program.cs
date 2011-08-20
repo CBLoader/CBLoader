@@ -21,11 +21,11 @@ namespace CharacterBuilderLoader
                 sf.LoadFromConfig(fm); // Don't require the config file. (Especially before checking we're in the right directory)
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
-                
+                Log.Info("CBLoader version 1.3.0");
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
-                if (sf.UpdateFirst)
+                if (sf.CheckForUpdates && sf.UpdateFirst)
                     fm.DoUpdates(sf.ForcedReload);
                 if (!sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
@@ -40,7 +40,7 @@ namespace CharacterBuilderLoader
                     fm.ExtractAndMerge(sf.ForcedReload);
 
                 // And here's the better alternated to DCUpdater.
-                if (fm.DoUpdates(sf.ForcedReload))
+                if (sf.CheckForUpdates && fm.DoUpdates(sf.ForcedReload))
                 {
                     Log.Info("Character Builder has already been launched.\n  The following merges are not a bug, and not slowing down the loading of CB.");
                     fm.ExtractAndMerge(sf.ForcedReload);

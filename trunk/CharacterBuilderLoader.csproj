@@ -109,6 +109,7 @@
     </Compile>
     <Compile Include="PEFiles\TableInfo.cs" />
     <Compile Include="StartupFlags.cs" />
+    <Compile Include="UpdateLog.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
