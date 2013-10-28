@@ -21,7 +21,7 @@ namespace CharacterBuilderLoader
                 sf.LoadFromConfig(fm); // Don't require the config file. (Especially before checking we're in the right directory)
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
-                Log.Info("CBLoader version 1.3.0");
+                Log.Info("CBLoader version 1.3.1");
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
