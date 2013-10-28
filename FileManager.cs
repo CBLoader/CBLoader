@@ -274,7 +274,20 @@ namespace CharacterBuilderLoader
             catch (Exception e)
             {
                 updateMergedList(fi.FullName, DateTime.MinValue);
-                Log.Error("ERROR LOADING FILE: ", e);
+                if ((e.Message.Contains("The following elements are not closed") && e.Message.ToLowerInvariant().Contains("D20Rules".ToLowerInvariant())) || e.Message.Contains("There is an unclosed literal string"))
+                {
+                    if (File.Exists(fi.FullName + ".borked"))
+                    {
+                        File.Delete(fi.FullName + ".borked");
+                    }
+                    Log.Error(fi.Name + " did not download correctly. ", ex);
+                    fi.MoveTo(fi.FullName + ".borked");
+                }
+                else
+                {
+                    Log.Error("ERROR LOADING FILE: ", e);
+                }
+
             }
         }
 
