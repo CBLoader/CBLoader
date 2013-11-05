@@ -155,34 +155,47 @@ namespace CharacterBuilderLoader
             System.Net.WebClient wc = new System.Net.WebClient();
             foreach (FileInfo index in Indexes)
             {
-                XDocument PartIndex = XDocument.Load(index.FullName);
-                CheckMetaData(index, PartIndex);
-                foreach (XElement Part in PartIndex.Root.Elements("Part"))
-                {
-                    try
-                    {
-                        string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
-                        if (ignoredParts.Contains(Part.Element("Filename").Value.ToLower().Trim()))
-                            continue;
-                        if (!File.Exists(filename) || forced)
-                        {
-                            Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
-                            wc.DownloadFile(Part.Element("PartAddress").Value, filename);
-                            NewFiles = true;
-                        }
-                    }
-                    catch (System.Net.WebException v)
-                    {
-                        if (v.ToString().Contains("is denied"))
-                            Log.Error("CBLoader could not save the updates to disk.\n\tCheck the index file is somewhere you have write permissions.\n\tWe recommend the My Documents\\ddi\\CBLoader folder", v);
-                    }
-                }
-                foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
+                NewFiles = CheckIndex(forced, NewFiles, wc, index);
+            }
+            return NewFiles;
+        }
+
+        /// <summary>
+        /// Check an individual index for updates.  Refactored out of CheckIndexes for the ability to recurse.
+        /// </summary>
+        private bool CheckIndex(bool forced, bool NewFiles, System.Net.WebClient wc, FileInfo index)
+        {
+            XDocument PartIndex = XDocument.Load(index.FullName);
+            CheckMetaData(index, PartIndex);
+            foreach (XElement Part in PartIndex.Root.Elements("Part"))
+            {
+                try
                 {
                     string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
-                    if (File.Exists(filename))
-                        File.Delete(filename);
+                    if (ignoredParts.Contains(Part.Element("Filename").Value.ToLower().Trim()))
+                        continue;
+                    if (!File.Exists(filename) || forced)
+                    {
+                        Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
+                        wc.DownloadFile(Part.Element("PartAddress").Value, filename);
+                        if (Path.GetExtension(filename) == ".index")
+                            CheckIndex(forced, NewFiles, wc, new FileInfo(filename));
+                        else
+                            CheckMetaData(new FileInfo(filename), XDocument.Load(filename));
+                        NewFiles = true;
+                    }
                 }
+                catch (System.Net.WebException v)
+                {
+                    if (v.ToString().Contains("is denied"))
+                        Log.Error("CBLoader could not save the updates to disk.\n\tCheck the index file is somewhere you have write permissions.\n\tWe recommend the My Documents\\ddi\\CBLoader folder", v);
+                }
+            }
+            foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
+            {
+                string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                if (File.Exists(filename))
+                    File.Delete(filename);
             }
             return NewFiles;
         }
@@ -280,7 +293,7 @@ namespace CharacterBuilderLoader
                     {
                         File.Delete(fi.FullName + ".borked");
                     }
-                    Log.Error(fi.Name + " did not download correctly. ", ex);
+                    Log.Error(fi.Name + " did not download correctly. ", e);
                     fi.MoveTo(fi.FullName + ".borked");
                 }
                 else

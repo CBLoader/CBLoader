@@ -72,8 +72,10 @@ namespace CharacterBuilderLoader
                             Program.DisplayHelp();
                             return false;
                         // Fast Mode
-                        case "-fm":
+                        case "+fm":
                             this.Mergelater = File.Exists(FileManager.MergedPath); break;
+                        case "-fm":
+                            this.Mergelater = false; break;
                         case "+d":
                             this.UpdateFirst = true;
                             this.LoadExec = false;
@@ -161,6 +163,8 @@ namespace CharacterBuilderLoader
                     this.LoadExec = settings.LaunchBuilder;
                 if (settings.NewMergeLogicSpecified)
                     fm.UseNewMergeLogic = settings.NewMergeLogic;
+                if (settings.ShowChangelogSpecified)
+                    UpdateLog.ShowChangelog = settings.ShowChangelog;
             }
             catch (Exception e)
             {
