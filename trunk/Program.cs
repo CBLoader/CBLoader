@@ -10,6 +10,7 @@ namespace CharacterBuilderLoader
 {
     class Program
     {
+        public static string Version = "1.3.2b2";
         static void Main(string[] args)
         {
             try
@@ -21,7 +22,7 @@ namespace CharacterBuilderLoader
                 sf.LoadFromConfig(fm); // Don't require the config file. (Especially before checking we're in the right directory)
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
-                Log.Info("CBLoader version 1.3.2b2");
+                Log.Info(String.Format("CBLoader version {0}", Version));
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
