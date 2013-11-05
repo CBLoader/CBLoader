@@ -21,7 +21,7 @@ namespace CharacterBuilderLoader
                 sf.LoadFromConfig(fm); // Don't require the config file. (Especially before checking we're in the right directory)
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
-                Log.Info("CBLoader version 1.3.1");
+                Log.Info("CBLoader version 1.3.2b2");
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
@@ -39,6 +39,7 @@ namespace CharacterBuilderLoader
                 if (sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
 
+                Utils.CheckIfUserAssoc();
                 // And here's the better alternated to DCUpdater.
                 if (sf.CheckForUpdates && fm.DoUpdates(sf.ForcedReload))
                 {
@@ -46,6 +47,7 @@ namespace CharacterBuilderLoader
                     fm.ExtractAndMerge(sf.ForcedReload);
                 }
 
+                /*
                 // From Jeff: this is kinda creepy to have. We'll leave it for now though.
                 //   Stephen:   My only issue is the fact that it pops up as an additional cmd window for a quarter of a second. I'll find a better way of doing it.
                 //     I've now made a better way of doing it. (See FileManager.CheckMetaData).  This should now be Obsolete, and therefore removable.
@@ -58,6 +60,7 @@ namespace CharacterBuilderLoader
                     dcuhelper.WindowStyle = ProcessWindowStyle.Minimized;
                     Process.Start(dcuhelper);
                 }
+                */
             }
             catch (Exception e)
             {

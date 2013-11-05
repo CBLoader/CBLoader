@@ -1,4 +1,18 @@
-﻿v1.3.0
+﻿v1.3.2
+The changelog now has html folding magic.  Only the latest three changes are displayed at load.  
+  (CBLoader assumes changes happen in descending order)
+Indexes now recursively update. (Ideal when an index points at another index)
+Added new config option: ShowChangelog
+  If set to False, CBLoader won't launch your browser with the changelog.
+Changed Fast Mode command line switch:
+  +fm now enables Fast Mode
+  -fm new DISABLES Fast Mode, if it was enabled from a config file.
+CBLoader should now try to Associate .dnd4e files at a user level automatically.
+
+v1.3.1
+CBLoader can now detect broken part files,	and change their extension.
+
+v1.3.0
 A new merge process, which will improve your merge times exponentially.
 Added two command line arguments: (Issue 64)
  -d Don't download.
