@@ -1,0 +1,119 @@
+﻿v1.3.2
+* The changelog now has html folding magic.  Only the latest three changes are displayed at load.  
+ - (CBLoader assumes changes happen in descending order)
+* Indexes now recursively update. (Ideal when an index points at another index)
+Added new config option: ShowChangelog
+* If set to False, CBLoader won't launch your browser with the changelog.
+* Changed Fast Mode command line switch:
+  - +fm now enables Fast Mode
+  - -fm new DISABLES Fast Mode, if it was enabled from a config file.
+* CBLoader should now try to Associate .dnd4e files at a user level automatically.
+
+v1.3.1
+* CBLoader can now detect broken part files, and will disable them by changing their extension.
+
+v1.3.0
+
+* A new merge process, which will improve your merge times exponentially.
+* Added two command line arguments: ( Issue 64 )
+        -d Don't download.
+        +d Only download for Update First + No Launch 
+* Added &lt;changelog&gt; element.
+* Fixed  Issue 37 : Changed file not being reloaded
+* Fixed  Issue 41 : Merge order is strange
+* Fixed  Issue 69 : Updater Mechanism does not provide enough information when it fails.
+* Fixed  issue 72 : Various issues related to setting a non-default basepath 
+
+v1.2.4.1
+
+* "Applying base elements" was popping up when it shouldn't have. Clarified the secondary merge process.
+* (Yes, the entirity of this release was to remove one log message, and add a different one, hence why I don't want to bump the version) 
+
+v1.2.4
+
+* Fixed the Double Custom bug that appears to have shown its face. (Not sure why It's only happening now, the bug itself was has been in there since 1.1)
+* Added additional default part folder, My Documents\ddi\CBLoader.
+* This is an alternative for people running CB from Program Files\WotC\Character Builder\CharBuilderFull_p, as UAC prevents the Automatic updater.
+* The default custom folder is still usable. 
+
+v1.2.3
+
+* Added a new config option Ignore.
+* This allows you to list the parts you want to ignore.
+* Ignored Parts will not be downloaded from indexes, and will not be merged if already downloaded.
+* Ignored Parts will still be checked for updates and obseletion. 
+
+v1.2.2
+Fixed a handful of config file bugs:
+
+* CBLoader no longer requires a config file to work. ( Issue 40 ) Relative paths in config files didn't work as expected. default.config didn't not load if WorkingDirectory is elsewhere, and config file is in CBLoader's directory.
+* CBLoader Associations do not work when there is a space in CBLoader's Path. (This affects both config and dnd4e files) You must run CBLoader with the -a switch for this fix to take effect.
+* New Environmental Variable %CBLOADER% available for your config files. (The directory CBLoader is located in)
+* Index Files now tell you when they download new files. 
+
+v1.2.1
+
+* CBloader will now remerge after updating.
+* Added two new config file options
+ - UpdateFirst: Tells CBLoader to check for updates before merging. Enable this if you don't have trouble with the updater.
+ - LaunchBuilder: Tells CBLoader not to launch the character Builder. Useful if you needed to HardPatch. (Sorry for forgetting this in 1.1.6) 
+
+﻿v1.2
+
+* Fixed a handful of minor bugs.
+* The loader can now chain additional config files using the -c argument.
+* You can also launch the config file directly if you update your associations.
+* The loader can now update parts using the new &lt;UpdateInfo&gt; element.
+* Added a new file type .index to the loader. This file provides an index of parts that should be installed.
+* It also supports &lt;UpdateInfo&gt;, and can be used to push new parts to users.
+* Added the &lt;Obsolete&gt; element.
+* More details are located at http://cbloadercontentwiki.wikispaces.com/Updating+Your+Parts 
+
+v1.1.6
+
+* The loader will now merge less frequently. If you are continually modifying a single file, you will notice that only that file will be merged reducing the wait time caused by merging all .parts in previous versions.
+* Added Config File support to enable users to bypass the command line. Create a file named default.cbconfig to use it.
+ - Note that it does not yet handle every possible command line option.
+ - Options such as Hard-Patch will probably never exist in config files, for example.
+ - Refer to http://cbloadercontentwiki.wikispaces.com/Config+Files for a description 
+* Adjusted the loader such that if a file named cbloader.keyfile exists with cbloader.exe, it will automatically attempt to use that file as a keyfile without the use of the -k command line option
+* Deleting a .part file now forces a re-merge 
+
+﻿v1.1.5
+
+* Fixed  Issue 23  - &lt;AppendNodes&gt; does not work when adding extra rules. 
+
+v1.1.4
+
+* Added &lt;AppendNodes&gt; and &lt;RemoveNodes&gt; elements. Refer to http://cbloadercontentwiki.wikispaces.com/Anatomy+of+a+Part for details.
+* Fixed a bug related to an incorrectly set Working Directory. 
+
+V1.1.3
+
+* Added keyfile support. running the application with the -r fileName switch will generate a keyfile, running it with the -k filename switch will force it to use that keyfile. This is useful in allowing users to move the character builder between machines. 
+
+* CBLoader now no longer writes files directly to the program files directory. Instead it writes files to the users application data directory (C:\Users\\[username]\AppData\Roaming\CBLoader on my machine). This should work around several vista/windows 7 UAC issues. 
+
+* A log file is now created in the application directory. In addition, the window will no longer close if an error is encountered. 
+
+* Fixed an issue where having an error, or missing .part file would force a re-merge on every application load. Now it will only remerge when changed. 
+
+* Added the -a switch, which will switch the file association for .dnd4e (saved character files) from the standard character builder to cbloader.exe 
+
+V1.1.2
+
+* Improved the error message when the machine does not have a decryption key
+* Added 'patch mode', the -p switch can now be used to patch the character builder on-disk in an attempt to bypass issues some users are having with the loader solution.
+* Fixed an issue where newlines were being mishandled during the merge causing several formatting issues inside character builder. 
+
+V1.1.1 
+* Fixed a crash when the 'Custom' folder did not exist'
+
+V1.1.0
+* Added the ability to use a 'Custom' folder to contain multiple .part files.
+
+V1.0.1
+* Fixed an issue where the character builder would not load on WindowsXP due to an unhandled breakpoint exception.
+
+v1.0 
+* Initial release 
