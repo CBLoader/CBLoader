@@ -1,4 +1,7 @@
-﻿This is CBLoader. Please check for the latest version and for documentation at: http://code.google.com/p/cbloader/
+﻿Provides a greater degree of houserule options than the standard D&D Character Builder application by allowing you to manually modify the rules XML file and load those changes into the D&D offline Character Builder.
+
+Please check for the latest version and for documentation at: http://github.com/cbloader/cbloader/
 
 Original Author: Jeff Hamm
-Suggestions and support by: VaultDweller, Barnetja, YeOldSteve
+Current Maintainer: Katelyn Gigante
+Suggestions and support by: VaultDweller, Barnetja

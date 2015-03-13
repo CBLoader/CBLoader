@@ -38,7 +38,8 @@ namespace CharacterBuilderLoader
             set
             {
                 basePath = value;
-                KeyFile = BasePath + "cbloader.keyfile";
+                if (!File.Exists(KeyFile) && File.Exists(BasePath + "cbloader.keyfile")) // Weird things can happen with multiple config files.
+                    KeyFile = BasePath + "cbloader.keyfile";
                 if (!Directory.Exists(BasePath))
                     Directory.CreateDirectory(BasePath);
 

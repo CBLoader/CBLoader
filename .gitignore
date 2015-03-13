@@ -1,0 +1,7 @@
+bin/
+obj/
+*.suo
+publish/
+*.csproj.user
+packages/
+Resources/Thumbs.db
