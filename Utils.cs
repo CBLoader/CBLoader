@@ -198,7 +198,10 @@ namespace CharacterBuilderLoader
             }
             catch (System.Net.WebException c)
             {
-                Log.Error("Failed checking for Updates", c);
+                if (c.ToString().Contains("could not be resolved")) // No Internet
+                    Log.Debug("No internet access");
+                else 
+                    Log.Error("Failed checking for Updates", c);
             }
         }
     }

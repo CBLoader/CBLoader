@@ -94,7 +94,13 @@ namespace CharacterBuilderLoader
              UseNewMergeLogic = true;
             string ddi = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi");
             if (Directory.Exists(ddi))
+            {
                 AddCustomFolder(Directory.CreateDirectory(Path.Combine(ddi, "CBLoader")).FullName);
+                foreach (var subfolder in Directory.GetDirectories(Path.Combine(ddi, "CBLoader"), "*", SearchOption.AllDirectories))
+                {
+                    AddCustomFolder(new DirectoryInfo(subfolder).FullName);                   
+                }
+            }
         }
 
         /// <summary>
