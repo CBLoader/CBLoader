@@ -10,7 +10,7 @@ namespace CharacterBuilderLoader
 {
     class Program
     {
-        public static string Version = "1.3.2b3";
+        public static string Version = "1.3.2b4";
         static void Main(string[] args)
         {
             try
