@@ -23,9 +23,11 @@ using System.Xml.Serialization;
 [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://code.google.com/p/cbloader/cbconfig.xsd")]
 [System.Xml.Serialization.XmlRootAttribute("Settings", Namespace="http://code.google.com/p/cbloader/cbconfig.xsd", IsNullable=false)]
 public partial class SettingsType {
-    
+
+    private string[] rawArgsField;
+
     private string[] foldersField;
-    
+
     private string[] ignoreField;
     
     private bool fastModeField;
@@ -61,7 +63,21 @@ public partial class SettingsType {
     private bool showChangelogField;
     
     private bool showChangelogFieldSpecified;
-    
+
+    /// <remarks/>
+    [System.Xml.Serialization.XmlArrayItemAttribute("Arg", IsNullable = false)]
+    public string[] RawArgs
+    {
+        get
+        {
+            return this.rawArgsField;
+        }
+        set
+        {
+            this.rawArgsField = value;
+        }
+    }
+
     /// <remarks/>
     [System.Xml.Serialization.XmlArrayItemAttribute("Custom", IsNullable=false)]
     public string[] Folders {

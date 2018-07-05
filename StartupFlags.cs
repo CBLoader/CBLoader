@@ -165,6 +165,9 @@ namespace CharacterBuilderLoader
                     fm.UseNewMergeLogic = settings.NewMergeLogic;
                 if (settings.ShowChangelogSpecified)
                     UpdateLog.ShowChangelog = settings.ShowChangelog;
+                if (settings.RawArgs != null)
+                    if (!ParseCmdArgs(settings.RawArgs, fm))
+                        return false;
             }
             catch (Exception e)
             {
