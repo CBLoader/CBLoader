@@ -47,13 +47,6 @@ namespace CharacterBuilderLoader
                     Log.Info("Character Builder has already been launched.\n  The following merges are not a bug, and not slowing down the loading of CB.");
                     fm.ExtractAndMerge(sf.ForcedReload);
                 }
-
-                if (sf.CheckForUpdates) // App Updates
-                 {
-                    Utils.CheckForNewVersion(Version);
-
-                 }
-
             }
             catch (Exception e)
             {

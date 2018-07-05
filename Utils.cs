@@ -168,41 +168,5 @@ namespace CharacterBuilderLoader
             fs.Read(buffer, 0, 8);
             return BitConverter.ToInt64(buffer, 0);
         }
-
-        internal static void CheckForNewVersion(string Version)
-        {
-            try
-            {
-                var wc = new System.Net.WebClient();
-                var ver = wc.DownloadString(@"https://github.com/CBLoader/CBLoader/raw/master/Releases/Current.txt").Trim();
-                if (ver != Version)
-                {
-                    var zip = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), string.Format(@"ddi\Updates\CBLoader v{0}.zip", ver));
-                    Directory.CreateDirectory(Path.GetDirectoryName(zip));
-                    if (File.Exists(zip))
-                    {
-
-                    }
-                    else
-                    {
-                        Log.Info("New version available. Download?");
-                        if (Console.ReadKey().Key == ConsoleKey.Y)
-                        {
-                            Console.WriteLine();
-                            wc.DownloadFile(string.Format(@"https://github.com/CBLoader/CBLoader/raw/master/Releases/CBLoader {0}.zip", ver), zip);
-                            Log.Info("Downloaded new version to My Documents\\ddi folder.");
-                            System.Diagnostics.Process.Start(Path.GetDirectoryName(zip));
-                        }
-                    }
-                }
-            }
-            catch (System.Net.WebException c)
-            {
-                if (c.ToString().Contains("could not be resolved")) // No Internet
-                    Log.Debug("No internet access");
-                else 
-                    Log.Error("Failed checking for Updates", c);
-            }
-        }
     }
 }
