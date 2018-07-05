@@ -37,7 +37,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\CharacterBuilder\CharBuilderFull_p\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -57,7 +57,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ApplicationUpdate.Client">
-      <HintPath>..\..\CharacterBuilder\CharBuilderFull_p\ApplicationUpdate.Client.dll</HintPath>
+      <HintPath>.\ApplicationUpdate.Client.dll</HintPath>
     </Reference>
     <Reference Include="NativeDebugWrappers, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -167,12 +167,10 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-    <PropertyGroup>
+  <PropertyGroup>
     <MSBuildCommunityTasksPath>$(MSBuildProjectDirectory)\.build</MSBuildCommunityTasksPath>
   </PropertyGroup>
-
-  <Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.targets"/>
-
+  <Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
@@ -180,7 +178,7 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-    <Target Name="Release">
+  <Target Name="Release">
     <ReadLinesFromFile File="Program.cs">
       <Output TaskParameter="Lines" ItemName="ItemsFromFile" />
     </ReadLinesFromFile>
@@ -193,12 +191,13 @@
     <ItemGroup>
       <PublishFiles Include="bin\release\CBLoader.exe;Changelog.txt;default.cbconfig;gpl-2.0.txt;bin\release\NativeDebugWrappers.dll;README.txt" />
     </ItemGroup>
-    <Copy SourceFiles="@(PublishFiles)" DestinationFolder="Releases\$(VersionString)\"></Copy>
-	<ItemGroup>
-	  <ZipFiles Include="Releases\$(VersionString)\*" />
-	</ItemGroup>
+    <Copy SourceFiles="@(PublishFiles)" DestinationFolder="Releases\$(VersionString)\">
+    </Copy>
+    <ItemGroup>
+      <ZipFiles Include="Releases\$(VersionString)\*" />
+    </ItemGroup>
     <Zip Files="@(ZipFiles)" WorkingDirectory="Releases\$(VersionString)\" ZipFileName="Releases\CBLoader $(VersionString).zip" />
-	<RemoveDir Directories="Releases\$(VersionString)\" />
-	<WriteLinesToFile File="Releases\Current.txt" Lines="$(VersionString)" Overwrite="true" />
+    <RemoveDir Directories="Releases\$(VersionString)\" />
+    <WriteLinesToFile File="Releases\Current.txt" Lines="$(VersionString)" Overwrite="true" />
   </Target>
 </Project>
