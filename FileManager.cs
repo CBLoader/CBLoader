@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.IO;
 using System.Xml.Linq;
-using ApplicationUpdate.Client;
 using System.Xml.Serialization;
 using System.Xml;
 using System.Security.Cryptography;
@@ -734,36 +733,14 @@ namespace CharacterBuilderLoader
             if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CoreFileName))
             {
                 Log.Info("Extracting " + CoreFileName);
-                if (!File.Exists(KeyFile))
+                try
                 {
-                    try
-                    {
-                        TryExtract();
-                    }
-                    catch (IOException e)
-                    {
-                        if (e.Message.Contains("assembly 'ApplicationUpdate.Client"))
-                        {
-                            Log.Info("Copying ApplicationUpdate.Client.dll to CBLoader folder.  The following error is expected.  Just relaunch CBLoader.");
-                            File.Copy("ApplicationUpdate.Client.dll", Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "ApplicationUpdate.Client.dll")); // Get the DLL from the Character Builder Folder.
-                            ExtractWithKeyFile();
-                        }
-                    }
-                    catch (CryptographicException)
-                    {
-                        ExtractWithKeyFile();
-                    }
-                    catch (ArgumentException)
-                    {
-                        ExtractWithKeyFile();
-                    }
-                    catch (Exception e)
-                    {
-                        throw new Exception(GENERAL_EXTRACT_ERROR, e);
-                    }
+                    TryExtract();
                 }
-                else
-                    ExtractWithKeyFile();
+                catch (Exception e)
+                {
+                    throw new Exception(GENERAL_EXTRACT_ERROR, e);
+                }
                 if (!File.Exists(PartFileName))
                 {
                     using (StreamWriter sw = new StreamWriter(PartFileName))
@@ -777,40 +754,17 @@ namespace CharacterBuilderLoader
 
         private void TryExtract()
         {
-            using (StreamReader sr = new StreamReader(CommonMethods.GetDecryptedStream(applicationID, ENCRYPTED_FILENAME)))
-            {
-                using (StreamWriter sw = new StreamWriter(CoreFileName))
+            using (StreamReader kr = new StreamReader(File.Open("RegPatcher.dat", FileMode.Open))) {
+                var key = kr.ReadToEnd();
+                var file = File.Open(ENCRYPTED_FILENAME, FileMode.Open);
+                var crypto = CryptoUtils.GetDecryptingStream(file, CryptoUtils.CB_APP_ID, guid => Convert.FromBase64String(key));
+                using (StreamReader sr = new StreamReader(crypto))
                 {
-                    string str = sr.ReadToEnd();
-                    uint accum = 5381;
-                    foreach(char c in str) {
-                        accum *= 33;
-                        accum += c;
+                    using (StreamWriter sw = new StreamWriter(CoreFileName))
+                    {
+                        sw.Write(sr.ReadToEnd());
                     }
-                    Log.Info("Checksum: " + accum);
-                    sw.Write(str);
                 }
-            }
-        }
-
-        private void ExtractWithKeyFile()
-        {
-            Log.Debug("Not using registry key, trying on-disk key: " + KeyFile);
-            CommonMethods.KeyStore = new FileKeyInformationStore(KeyFile);
-            try
-            {
-                TryExtract();
-            }
-            catch (CryptographicException ce)
-            {
-                throw new Exception(DECRYPT_ERROR, ce);
-            }
-            catch(ArgumentException ae) {
-                throw new Exception(DECRYPT_ERROR, ae);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception(GENERAL_EXTRACT_ERROR, ex);
             }
         }
 

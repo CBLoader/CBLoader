@@ -60,33 +60,26 @@ namespace CharacterBuilderLoader
 
         private static byte[] PatchApplicationUpdate(Stream unpatchedData)
         {
-            try
+            var assembly = AssemblyDefinition.ReadAssembly(unpatchedData);
+            Trace.Assert(assembly.FullName.StartsWith("ApplicationUpdate.Client, "),
+                            "ApplicationUpdate.Client.dll does not seem to contain the correct assembly!");
+
+            var commonMethodsDef = assembly.MainModule.Types
+                .First(t => t.FullName == "ApplicationUpdate.Client.CommonMethods");
+
+            foreach (var method in commonMethodsDef.Methods)
             {
-                var assembly = AssemblyDefinition.ReadAssembly(unpatchedData);
-                Trace.Assert(assembly.FullName.StartsWith("ApplicationUpdate.Client, "),
-                             "ApplicationUpdate.Client.dll does not seem to contain the correct assembly!");
-
-                var commonMethodsDef = assembly.MainModule.Types
-                    .First(t => t.FullName == "ApplicationUpdate.Client.CommonMethods");
-
-                foreach (var method in commonMethodsDef.Methods)
-                {
-                    Log.Debug(method.FullName);
-                    AddMethodTracer(method);
-                }
-
-                var debug_out = File.Open("ApplicationUpdate.Client-patched.dll", FileMode.Create);
-                assembly.Write(debug_out);
-                assembly.Dispose();
-
-                var patchedData = new MemoryStream();
-                assembly.Write(patchedData);
-                return patchedData.ToArray();
+                Log.Debug(method.FullName);
+                AddMethodTracer(method);
             }
-            finally
-            {
-                unpatchedData.Dispose();
-            }
+
+            var debug_out = File.Open("ApplicationUpdate.Client-patched.dll", FileMode.Create);
+            assembly.Write(debug_out);
+            assembly.Dispose();
+
+            var patchedData = new MemoryStream();
+            assembly.Write(patchedData);
+            return patchedData.ToArray();
         }
 
         public static void StartProcess(string rootDirectory, string[] args)
@@ -99,14 +92,17 @@ namespace CharacterBuilderLoader
             var appDomain = AppDomain.CreateDomain("D&D 4E Character Builder", null, setup, FULL_TRUST);
 
             Log.Debug("Patching ApplicationUpdate.Client.dll");
-            var assembly = PatchApplicationUpdate(File.Open(Path.Combine(rootDirectory, "ApplicationUpdate.Client.dll"), FileMode.Open));
+            byte[] assembly;
+            using (var stream = File.Open(Path.Combine(rootDirectory, "ApplicationUpdate.Client.dll"), FileMode.Open))
+                assembly = PatchApplicationUpdate(stream);
 
-#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS0618
+            // Though these methods are obsolete, they are the only option I've found for doing this.
             appDomain.AppendPrivatePath(AppDomain.CurrentDomain.BaseDirectory);
             appDomain.AssemblyResolve += new AssemblyResolver(rootDirectory, assembly).ResolveAssembly;
             appDomain.ClearPrivatePath();
             appDomain.AppendPrivatePath(":::"); // A path that cannot possibly exist.
-#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning restore CS0618
 
             foreach (var asm in appDomain.GetAssemblies()) Log.Debug("Init assemblies: " + asm.ToString());
 

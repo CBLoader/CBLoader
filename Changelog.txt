@@ -1,4 +1,6 @@
-﻿v1.3.2
+﻿v1.4.0
+
+v1.3.2
 * The changelog now has html folding magic.  Only the latest three changes are displayed at load.  
  - (CBLoader assumes changes happen in descending order)
 * Indexes now recursively update. (Ideal when an index points at another index)
@@ -91,13 +93,9 @@ v1.1.4
 V1.1.3
 
 * Added keyfile support. running the application with the -r fileName switch will generate a keyfile, running it with the -k filename switch will force it to use that keyfile. This is useful in allowing users to move the character builder between machines. 
-
 * CBLoader now no longer writes files directly to the program files directory. Instead it writes files to the users application data directory (C:\Users\\[username]\AppData\Roaming\CBLoader on my machine). This should work around several vista/windows 7 UAC issues. 
-
 * A log file is now created in the application directory. In addition, the window will no longer close if an error is encountered. 
-
 * Fixed an issue where having an error, or missing .part file would force a re-merge on every application load. Now it will only remerge when changed. 
-
 * Added the -a switch, which will switch the file association for .dnd4e (saved character files) from the standard character builder to cbloader.exe 
 
 V1.1.2
