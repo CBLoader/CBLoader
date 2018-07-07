@@ -55,7 +55,7 @@ namespace CharacterBuilderLoader
         }
         public static string MergedPath
         {
-            get { return BasePath + "combined.dnd40"; }
+            get { return BasePath + "combined.dnd40.encrypted"; }
         }
         private static string MergedFileInfo
         {
@@ -262,7 +262,7 @@ namespace CharacterBuilderLoader
                     MergeFile(main, fi,idDictionary);
             if (UseNewMergeLogic && idDictionary.Keys.FirstOrDefault() != null) // There is no first element, therefore there's nothing in there.  Skip the enumeration.
                 DeQueueMerges(main, idDictionary);
-            SaveDocument(main, MergedPath);
+            SaveEncryptedDocument(main, CryptoUtils.CB_APP_ID, CryptoUtils.INJECT_UPDATE_ID, Convert.FromBase64String(CryptoUtils.INJECT_UPDATE_KEY), MergedPath);
 
             using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
             {
@@ -496,6 +496,32 @@ namespace CharacterBuilderLoader
                 xw.Formatting = Formatting.Indented;
                 SaveDocument(xw, main.Root);
             }
+        }
+
+        /// <summary>
+        /// Saves the specified document to the specified filename
+        /// </summary>
+        private void SaveEncryptedDocument(XDocument main, Guid applicationGuid, Guid updateGuid, byte[] keyData, string filename)
+        {
+            var memoryWriter = new MemoryStream();
+            var xw = new XmlTextWriter(memoryWriter, Encoding.UTF8);
+            xw.Formatting = Formatting.Indented;
+            SaveDocument(xw, main.Root);
+            xw.Flush();
+            var rawXml = Encoding.UTF8.GetString(memoryWriter.ToArray());
+            var rawData = CryptoUtils.FixXmlHash(rawXml, 1996061607u); // TODO: Stop hardcoding this.
+            byte[] bytes = Encoding.UTF8.GetBytes(rawData);
+
+            var debugFile = File.Open("combined_temp.xml", FileMode.Create);
+            debugFile.Write(bytes, 0, bytes.Length);
+            debugFile.Dispose();
+
+            var file = File.Open(filename, FileMode.Create);
+            using (var crypto = CryptoUtils.GetEncryptingStream(file, applicationGuid, updateGuid, keyData))
+            {
+                crypto.Write(bytes, 0, bytes.Length);
+            }
+            file.Dispose();
         }
 
         /// <summary>

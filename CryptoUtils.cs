@@ -45,9 +45,9 @@ namespace CharacterBuilderLoader
         }
         private void UpdateReverse(string str)
         {
-            foreach (var ch in str) UpdateReverse(ch);
+            foreach (var ch in str.Reverse()) UpdateReverse(ch);
         }
-
+        
         public string CalculatePreimage(uint targetHash, string tail)
         {
             CBDataHasher target = new CBDataHasher(targetHash);
@@ -58,15 +58,15 @@ namespace CharacterBuilderLoader
             for (int i = 0; i < 5; i++)
             {
                 var tint = target.State;
-                var next = tint >= 0xD800 && tint <= 0xDFFF ? 0x752D + (tint % 33) :
+                var next = (tint >= 0xD800 && tint <= 0xDFFF) || tint == 0xFEFF ? 0x752D + (tint % 33) :
                            tint <= 0xFFFF ? tint : 0xFFC0 + (tint % 33);
-                var next_ch = (char) next;
+                var next_ch = (char)next;
 
                 outStr = next_ch + outStr;
                 target.UpdateReverse(next_ch);
             }
-            Trace.Assert(target.State == 0, "Preimage not successfully calculated?");
-            return outStr+tail;
+            Trace.Assert(target.State == 0, "CalculatePreimage failed.");
+            return outStr + tail;
         }
     }
 
@@ -86,7 +86,7 @@ namespace CharacterBuilderLoader
         public static Guid INJECT_UPDATE_ID = new Guid("f8ae4afc-dd59-46df-b467-0071d90e953d");
         public static string INJECT_UPDATE_KEY = "1Asic5ZWYplb3pdSZ7KcMP+8kuxQvCW02bNdlUtMT44=";
 
-        private static string XML_MARKER = "<!-- This file has been edited with CBLoader! -->";
+        private static string XML_MARKER = "<!-- This file has been edited by CBLoader -->";
 
         public static bool IsXmlPatched(string str)
         {
@@ -100,10 +100,17 @@ namespace CharacterBuilderLoader
         }
         public static string FixXmlHash(string str, uint target_hash)
         {
+            if (str.StartsWith("\uFEFF"))
+            {
+                // This is apparently stripped by ReadToEnd.
+                str = str.Substring(1, str.Length - 1);
+            }
+
             str += "\n" + XML_MARKER + "\n<!-- Fix hash: ";
             var hasher = new CBDataHasher();
             hasher.Update(str);
             str += hasher.CalculatePreimage(target_hash, " -->\n");
+            Trace.Assert(HashString(str) == target_hash, "FixXmlHash failed!");
             return str;
         }
 
@@ -131,7 +138,7 @@ namespace CharacterBuilderLoader
 
             var algorithm = CreateAlgorithm(applicationId, keyData);
             var cryptoStream = new CryptoStream(outStream, algorithm.CreateEncryptor(), CryptoStreamMode.Write);
-            return new GZipStream(outStream, CompressionMode.Compress);
+            return new GZipStream(cryptoStream, CompressionMode.Compress);
         }
     }
 }

@@ -32,7 +32,7 @@ namespace CharacterBuilderLoader
                 if (!sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
                 if (sf.LoadExec)
-                    ProcessLauncher.StartProcess(".", sf.Args.ToArray());
+                    ProcessLauncher.StartProcess(".", sf.Args.ToArray(), FileManager.MergedPath);
                 if (sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
 
