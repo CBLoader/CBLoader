@@ -10,7 +10,8 @@ namespace CharacterBuilderLoader
     public class StartupFlags
     {
         public const string CONFIG_FILENAME = "default.cbconfig";
- 
+
+        public List<string> Args { get; set; }
         public bool LoadExec { get; set; }
         public bool ForcedReload { get; set; }
         public bool Mergelater { get; set; }
@@ -21,6 +22,7 @@ namespace CharacterBuilderLoader
 
         public StartupFlags()
         {
+            Args = new List<string>();
             LoadExec = true;
             ForcedReload = false;
             Mergelater = false;
@@ -81,10 +83,7 @@ namespace CharacterBuilderLoader
                             CheckForUpdates = false;
                             break;
                         default:
-                            if (File.Exists(args[i])) // Otherwise we lose the quotes, and Character builder can't find the file. (if there's whitespace in the path)
-                                ProcessManager.EXECUTABLE_ARGS += " \"" + args[i] + "\"";
-                            else
-                                ProcessManager.EXECUTABLE_ARGS += " " + args[i];   // character Builder has args as well.  Lets pass unknown ones along.
+                            Args.Add(args[i]);
                             break;
                     }
                 }

@@ -41,10 +41,9 @@ namespace CharacterBuilderLoader
         }
     }
 
-    public sealed class ProcessManager
+    public sealed class ProcessLauncher
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
-        public static string EXECUTABLE_ARGS = "";
 
         private static void AddMethodTracer(MethodDefinition method)
         {
