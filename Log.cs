@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.IO;
 
@@ -22,8 +20,8 @@ namespace CharacterBuilderLoader
             if (VerboseMode)
             {
                 Console.WriteLine("Debug: " + msg);
-                writeToFile("Debug: " + msg);
             }
+            writeToFile("Debug: " + msg);
         }
 
         public static void Info(string msg)
