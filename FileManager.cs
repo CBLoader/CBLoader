@@ -781,7 +781,14 @@ namespace CharacterBuilderLoader
             {
                 using (StreamWriter sw = new StreamWriter(CoreFileName))
                 {
-                    sw.Write(sr.ReadToEnd());
+                    string str = sr.ReadToEnd();
+                    uint accum = 5381;
+                    foreach(char c in str) {
+                        accum *= 33;
+                        accum += c;
+                    }
+                    Log.Info("Checksum: " + accum);
+                    sw.Write(str);
                 }
             }
         }

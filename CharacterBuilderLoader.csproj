@@ -54,14 +54,23 @@
     <WarningLevel>4</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>true</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ApplicationUpdate.Client">
       <HintPath>.\ApplicationUpdate.Client.dll</HintPath>
     </Reference>
-    <Reference Include="NativeDebugWrappers, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\NativeDebugWrappers.dll</HintPath>
+    <Reference Include="Mono.Cecil, Version=0.10.0.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <HintPath>packages\Mono.Cecil.0.10.0\lib\net35\Mono.Cecil.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -82,24 +91,10 @@
     <Compile Include="cbconfig.cs">
       <DependentUpon>cbconfig.xsd</DependentUpon>
     </Compile>
-    <Compile Include="PEFiles\CLRDirectory.cs" />
-    <Compile Include="PEFiles\FieldDef.cs" />
     <Compile Include="FileManager.cs" />
     <Compile Include="LastMergedFileInfo.cs" />
     <Compile Include="Log.cs" />
-    <Compile Include="PEFiles\MetaDataHeader.cs" />
-    <Compile Include="PEFiles\MetaDataStream.cs" />
-    <Compile Include="PEFiles\MetaTableID.cs" />
-    <Compile Include="PEFiles\Method.cs" />
-    <Compile Include="PEFiles\MethodDef.cs" />
-    <Compile Include="PEFiles\PEOptionalHeader.cs" />
-    <Compile Include="PEFiles\PEDataDirectory.cs" />
-    <Compile Include="PEFiles\PEFile.cs" />
-    <Compile Include="PEFiles\PEFileHeader.cs" />
-    <Compile Include="PEFiles\PESection.cs" />
-    <Compile Include="PEFiles\PoundTildeStream.cs" />
     <Compile Include="ProcessManager.cs" />
-    <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -107,7 +102,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="PEFiles\TableInfo.cs" />
     <Compile Include="StartupFlags.cs" />
     <Compile Include="UpdateLog.cs" />
     <Compile Include="Utils.cs" />
@@ -141,6 +135,8 @@
     <None Include="icons\mres-large.ico" />
     <None Include="icons\mres-med.ico" />
     <None Include="icons\mres-small.ico" />
+    <None Include="packages.config" />
+    <None Include="Properties\app.manifest" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">

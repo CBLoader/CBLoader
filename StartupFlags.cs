@@ -13,7 +13,6 @@ namespace CharacterBuilderLoader
  
         public bool LoadExec { get; set; }
         public bool ForcedReload { get; set; }
-        public bool PatchFile { get; set; }
         public bool Mergelater { get; set; }
         public bool UpdateFirst { get; set; }
         public bool CheckForUpdates { get; set; }
@@ -24,7 +23,6 @@ namespace CharacterBuilderLoader
         {
             LoadExec = true;
             ForcedReload = false;
-            PatchFile = false;
             Mergelater = false;
             UpdateFirst = false;
             CheckForUpdates = true;
@@ -47,7 +45,6 @@ namespace CharacterBuilderLoader
                         case "-e": this.ForcedReload = true; break;
                         case "-n": this.LoadExec = false; break;
                         case "-v": Log.VerboseMode = true; break;
-                        case "-p": this.PatchFile = true; break;
                         case "-a": Utils.UpdateRegistry(); break;
                         case "-u": 
                             FileManager.BasePath = getArgString(args, ref i);

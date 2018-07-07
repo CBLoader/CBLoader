@@ -11,6 +11,7 @@ namespace CharacterBuilderLoader
     class Program
     {
         public static string Version = "1.3.2b4";
+        
         static void Main(string[] args)
         {
             try
@@ -31,12 +32,7 @@ namespace CharacterBuilderLoader
                 if (!sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
                 if (sf.LoadExec)
-                {
-                    if (sf.PatchFile)
-                        ProcessManager.StartProcessAndPatchFile();
-                    else
-                        ProcessManager.StartProcessAndPatchMemory();
-                }
+                    ProcessManager.StartProcess(".", new string[0]);
                 if (sf.Mergelater)
                     fm.ExtractAndMerge(sf.ForcedReload);
 
@@ -91,7 +87,6 @@ namespace CharacterBuilderLoader
         public static void DisplayHelp()
         {
             Log.Info("Usage: CBLoader.exe [-p] [-e] [-n] [-v] [-a] [-r keyFile] [-k keyFile] [-u userFolder] [-f customFolder] [-fm] [-h] [CBArgs]");
-            Log.Info("\t-p\tUse Hard Patch mode.");
             Log.Info("\t-e\tRe-Extract and Re-Merge the xml files");
             Log.Info("\t-n\tDo not load the executable");
             Log.Info("\t-v\tRuns CBLoader in verbose mode. Useful for debugging.");
