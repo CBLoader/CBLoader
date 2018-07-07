@@ -16,27 +16,41 @@ namespace CharacterBuilderLoader
     {
         private string rootDirectory;
         private byte[] assembly;
+        private bool verbose;
 
-        public AssemblyResolver(string rootDirectory, byte[] assembly)
+        public AssemblyResolver(string rootDirectory, byte[] assembly, bool verbose)
         {
             this.rootDirectory = rootDirectory;
             this.assembly = assembly;
+            this.verbose = verbose;
         }
 
         public Assembly ResolveAssembly(Object sender, ResolveEventArgs ev)
         {
+            if (verbose) Console.WriteLine("AssemblyResolver: Handling ResolveAssembly event for " + ev.Name);
+
             string name = ev.Name;
             if (name.Contains(",")) name = name.Split(',')[0].Trim();
 
-            Console.WriteLine("AssemblyResolve for " + name);
-
-            if (name == "ApplicationUpdate.Client") return Assembly.Load(assembly);
+            if (name == "ApplicationUpdate.Client")
+            {
+                if (verbose) Console.WriteLine("AssemblyResolver:  - Using patched ApplicationUpdate.Client.dll");
+                return Assembly.Load(assembly);
+            }
 
             var appPath = Path.Combine(rootDirectory, name + ".dll");
-            if (File.Exists(appPath)) return Assembly.LoadFrom(appPath);
+            if (File.Exists(appPath))
+            {
+                if (verbose) Console.WriteLine("AssemblyResolver:  - Found assembly at " + appPath);
+                return Assembly.LoadFrom(appPath);
+            }
 
             var exePath = Path.Combine(rootDirectory, name + ".exe");
-            if (File.Exists(exePath)) return Assembly.LoadFrom(exePath);
+            if (File.Exists(exePath))
+            {
+                if (verbose) Console.WriteLine("AssemblyResolver:  - Found assembly at " + exePath);
+                return Assembly.LoadFrom(exePath);
+            }
 
             return null;
         }
@@ -173,7 +187,7 @@ namespace CharacterBuilderLoader
 #pragma warning disable CS0618
             // Though these methods are obsolete, they are the only option I've found for doing this.
             appDomain.AppendPrivatePath(AppDomain.CurrentDomain.BaseDirectory);
-            appDomain.AssemblyResolve += new AssemblyResolver(rootDirectory, assembly).ResolveAssembly;
+            appDomain.AssemblyResolve += new AssemblyResolver(rootDirectory, assembly, Log.VerboseMode).ResolveAssembly;
             appDomain.ClearPrivatePath();
             appDomain.AppendPrivatePath(":::"); // A path that cannot possibly exist.
 #pragma warning restore CS0618
