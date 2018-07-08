@@ -27,26 +27,28 @@ namespace CharacterBuilderLoader
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
+                string basePath = ".";
+                CryptoInfo ci = new CryptoInfo(basePath);
+
                 if (sf.CheckForUpdates && sf.UpdateFirst)
                     fm.DoUpdates(sf.ForcedReload);
-                if (!sf.Mergelater)
-                    fm.ExtractAndMerge(sf.ForcedReload);
+                //if (!sf.Mergelater)
+                //    fm.ExtractAndMerge(sf.ForcedReload, ci);
                 if (sf.LoadExec)
-                    ProcessLauncher.StartProcess(".", sf.Args.ToArray(), FileManager.MergedPath);
-                if (sf.Mergelater)
-                    fm.ExtractAndMerge(sf.ForcedReload);
+                    ProcessLauncher.StartProcess(basePath, sf.Args.ToArray(), FileManager.MergedPath);
+                //if (sf.Mergelater)
+                //    fm.ExtractAndMerge(sf.ForcedReload, ci);
 
                 Utils.CheckIfUserAssoc();
                 // And here's the better alternated to DCUpdater.
                 if (sf.CheckForUpdates && fm.DoUpdates(sf.ForcedReload))
                 {
                     Log.Info("Character Builder has already been launched.\n  The following merges are not a bug, and not slowing down the loading of CB.");
-                    fm.ExtractAndMerge(sf.ForcedReload);
+                    fm.ExtractAndMerge(sf.ForcedReload, ci);
                 }
             }
             catch (Exception e)
             {
-                
                 Log.Error(String.Empty, e);
             }
             if (Log.ErrorLogged)
@@ -80,7 +82,6 @@ namespace CharacterBuilderLoader
             }
         }
 
-
         /// <summary>
         /// Displays the help text for the commandline arguments.
         /// </summary>
@@ -96,9 +97,8 @@ namespace CharacterBuilderLoader
             Log.Info("\t-u\tSpecifies the directory used to hold working files Defaults to the user directory.");
             Log.Info("\t-f\tSpecifies a folder containing custom rules files. This switch can be specified multiple times");
             Log.Info("\tCBArgs\tAny arguments int the list not recognized by cbloader will be passed on to the character builder application.");            
-            Log.Info("\t-f\tLaunches Character builder first, then merges files. The merged files will not show until you restart character builder.");
+            Log.Info("\t+fm\tLaunches Character builder first, then merges files. The merged files will not show until you restart character builder.");
             Log.Info("\t-h\tDisplay this help.");
         }
-
     }
 }

@@ -141,11 +141,11 @@ namespace CharacterBuilderLoader
         /// If this is false, the encrypted file will only be extracted if it is updated and the .main and .part files will only
         /// be merged if one has been touched. If forced is true, the files will be re-extracted and remerged regardless</param>
         /// </summary>
-        public void ExtractAndMerge(bool forced)
+        public void ExtractAndMerge(bool forced, CryptoInfo ci)
         {
             Log.Debug("Checking for merge and extract.");
             ExtractFile(forced);
-            MergeFiles(forced);
+            MergeFiles(forced, ci);
         }
 
         /// <summary>
@@ -211,7 +211,7 @@ namespace CharacterBuilderLoader
         /// <param name="forced">if true, the .main and .part files will always be merged. Otherwise they are only merged if
         /// one has been touched.</param>
         /// </summary>
-        private void MergeFiles(bool forced)
+        private void MergeFiles(bool forced, CryptoInfo ci)
         {
             if (!File.Exists(CoreFileName))
                 throw new Exception("Error, could not find file: " + CoreFileName);
@@ -229,13 +229,13 @@ namespace CharacterBuilderLoader
             }
 
             // construct the custom rules file
-            MergeFiles(customFiles);
+            MergeFiles(customFiles, ci);
         }
 
         /// <summary>
         /// Merges the specified files
         /// </summary>
-        private void MergeFiles(List<FileInfo> customFiles)
+        private void MergeFiles(List<FileInfo> customFiles, CryptoInfo ci)
         {
 
             var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
@@ -262,7 +262,7 @@ namespace CharacterBuilderLoader
                     MergeFile(main, fi,idDictionary);
             if (UseNewMergeLogic && idDictionary.Keys.FirstOrDefault() != null) // There is no first element, therefore there's nothing in there.  Skip the enumeration.
                 DeQueueMerges(main, idDictionary);
-            SaveEncryptedDocument(main, CryptoUtils.CB_APP_ID, CryptoUtils.INJECT_UPDATE_ID, Convert.FromBase64String(CryptoUtils.INJECT_UPDATE_KEY), MergedPath);
+            SaveEncryptedDocument(main, CryptoUtils.CB_APP_ID, CryptoUtils.INJECT_UPDATE_ID, Convert.FromBase64String(CryptoUtils.INJECT_UPDATE_KEY), ci, MergedPath);
 
             using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
             {
@@ -501,7 +501,7 @@ namespace CharacterBuilderLoader
         /// <summary>
         /// Saves the specified document to the specified filename
         /// </summary>
-        private void SaveEncryptedDocument(XDocument main, Guid applicationGuid, Guid updateGuid, byte[] keyData, string filename)
+        private void SaveEncryptedDocument(XDocument main, Guid applicationGuid, Guid updateGuid, byte[] keyData, CryptoInfo ci, string filename)
         {
             var memoryWriter = new MemoryStream();
             var xw = new XmlTextWriter(memoryWriter, Encoding.UTF8);
@@ -509,7 +509,7 @@ namespace CharacterBuilderLoader
             SaveDocument(xw, main.Root);
             xw.Flush();
             var rawXml = Encoding.UTF8.GetString(memoryWriter.ToArray());
-            var rawData = CryptoUtils.FixXmlHash(rawXml, 1996061607u); // TODO: Stop hardcoding this.
+            var rawData = ci.FixXmlHash(rawXml);
             byte[] bytes = Encoding.UTF8.GetBytes(rawData);
 
             var debugFile = File.Open("combined_temp.xml", FileMode.Create);

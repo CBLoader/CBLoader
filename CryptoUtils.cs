@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -70,11 +73,80 @@ namespace CharacterBuilderLoader
         }
     }
 
+    internal sealed class ParsedD20RulesEngine
+    {
+        public readonly uint expectedHeroesUpdateHash, expectedNormalHash;
+
+        public ParsedD20RulesEngine(string assemblyPath)
+        {
+            Log.Debug("Parsing D20RulesEngine.dll");
+
+            var assembly = AssemblyDefinition.ReadAssembly(assemblyPath);
+            var moduleBase = assembly.MainModule.Types.First(x => x.FullName == "<Module>");
+            var method = moduleBase.Methods.First(x => x.FullName.Contains("<Module>::D20RulesEngine.LoadRulesFile("));
+
+            method.Body.SimplifyMacros();
+
+            // Find call to ComputeHash
+            int computeHashStart = -1;
+            for (int i = 0; i < method.Body.Instructions.Count; i++)
+            {
+                if (method.Body.Instructions[i].OpCode == OpCodes.Call &&
+                    ((MethodReference)method.Body.Instructions[i].Operand).FullName.Contains("<Module>::GenerateHash("))
+                {
+                    computeHashStart = i;
+                    break;
+                }
+            }
+            if (computeHashStart == -1) throw new Exception("Cannot find invocation of ComputeHash in LoadRulesFile.");
+
+            // Find the local the hash is stored in.
+            if (method.Body.Instructions[computeHashStart + 1].OpCode != OpCodes.Stloc)
+                throw new Exception("stloc does not follow call to ComputeHash in LoadRulesFile.");
+            var hashVar = (VariableReference) method.Body.Instructions[computeHashStart + 1].Operand;
+
+            // Find the three comparisons that should follow.
+            var hashes = new uint[3];
+            int foundComparisons = 0;
+            for (int i = computeHashStart; i < Math.Min(method.Body.Instructions.Count - 2, computeHashStart + 30); i++)
+            {
+                if (method.Body.Instructions[i + 0].OpCode == OpCodes.Ldloc &&
+                    ((VariableReference) method.Body.Instructions[i + 0].Operand).Index == hashVar.Index &&
+                    method.Body.Instructions[i + 1].OpCode == OpCodes.Ldc_I4 &&
+                    method.Body.Instructions[i + 2].OpCode.OperandType == OperandType.InlineBrTarget)
+                {
+                    var currentHash = (uint) (int) method.Body.Instructions[i + 1].Operand;
+                    Log.Debug(" - Comparison found in LoadRulesFile: i = " + i + ", hash = " + currentHash);
+                    hashes[foundComparisons++] = currentHash;
+                    if (foundComparisons == 3) break;
+                }
+            }
+            if (foundComparisons != 3) throw new Exception("Not enough comparisons found in LoadRulesFile.");
+            if (hashes[0] != hashes[2]) throw new Exception("hashes[0] != hashes[2] in LoadRulesFile.");
+
+            // Output hash information.
+            Log.Debug("heroesUpdateHash = " + hashes[0] + ", normalHash = " + hashes[1]);
+            this.expectedHeroesUpdateHash = hashes[0];
+            this.expectedNormalHash = hashes[1];
+        }
+    }
+
     public sealed class CryptoInfo
     {
+        public readonly uint expectedHeroesUpdateHash, expectedNormalHash;
+
         public CryptoInfo(string baseDirectory)
         {
+            var d20EnginePath = Path.Combine(baseDirectory, "D20RulesEngine.dll");
+            var parsedD20Engine = new ParsedD20RulesEngine(d20EnginePath);
 
+            this.expectedHeroesUpdateHash = parsedD20Engine.expectedHeroesUpdateHash;
+            this.expectedNormalHash = parsedD20Engine.expectedNormalHash;
+        }
+
+        public string FixXmlHash(string str)
+        {
+            return CryptoUtils.FixXmlHash(str, this.expectedHeroesUpdateHash);
         }
     }
 
@@ -105,6 +177,7 @@ namespace CharacterBuilderLoader
                 // This is apparently stripped by ReadToEnd.
                 str = str.Substring(1, str.Length - 1);
             }
+            str = str.Replace("\r\n", "\n").Replace('\r', '\n');
 
             str += "\n" + XML_MARKER + "\n<!-- Fix hash: ";
             var hasher = new CBDataHasher();

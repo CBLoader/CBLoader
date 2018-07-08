@@ -3,5 +3,6 @@
 Please check for the latest version and for documentation at: http://github.com/cbloader/cbloader/
 
 Original Author: Jeff Hamm
-Current Maintainer: Katelyn Gigante
+Previous Maintainers: Katelyn Gigante
+Current Maintainer: Lymia Aluysia
 Suggestions and support by: VaultDweller, Barnetja
