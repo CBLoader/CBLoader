@@ -12,8 +12,11 @@ namespace CharacterBuilderLoader
     {
         public static string Version = "1.3.2b4";
         
+        [STAThread]
         static void Main(string[] args)
         {
+            Log.InitLogging();
+
             try
             {
                 Environment.SetEnvironmentVariable("CBLOADER", Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location));

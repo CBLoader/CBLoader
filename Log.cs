@@ -6,15 +6,21 @@ namespace CharacterBuilderLoader
 {
     public static class Log
     {
-        static Log()
-        {
-            LogFile = FileManager.BasePath + "/log.txt";
-            if (File.Exists(LogFile))
-                File.WriteAllText(LogFile, "");  // Resets the contents without actually deleting the file.
-        }
         public static string LogFile { get; private set; }
-        public static bool ErrorLogged { get; private set; }
-        public static bool VerboseMode { get; set; }
+        public static bool ErrorLogged;
+        public static bool VerboseMode;
+
+        internal static void InitLogging()
+        {
+            LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CBLoader.log");
+            if (File.Exists(LogFile)) File.WriteAllText(LogFile, "");
+        }
+        internal static void InitLoggingForChildDomain(string logFile, bool verbose)
+        {
+            LogFile = logFile;
+            VerboseMode = verbose;
+        }
+
         public static void Debug(string msg)
         {
             if (VerboseMode)
@@ -40,11 +46,10 @@ namespace CharacterBuilderLoader
 
         private static void writeToFile(string taggedMsg)
         {
-            using (StreamWriter sw = new StreamWriter(
-                new FileStream(LogFile, FileMode.Append)))
-            {
+            if (LogFile == null)
+                throw new Exception("Logging not initialized.");
+            using (StreamWriter sw = new StreamWriter(new FileStream(LogFile, FileMode.Append)))
                 sw.WriteLine(DateTime.Now.ToString() + " - " + taggedMsg);
-            }
         }
 
         public static void Error(string msg, Exception e)
