@@ -24,6 +24,7 @@ namespace CharacterBuilderLoader
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
                 Log.Info(String.Format("CBLoader version {0}", Version));
+                Log.Info("");
                 CheckWorkingDirectory();
                 fm.AddCustomFolder("custom");
 
@@ -51,13 +52,16 @@ namespace CharacterBuilderLoader
             {
                 Log.Error(String.Empty, e);
             }
+
             if (Log.ErrorLogged)
             {
-                Log.Info("Errors Encountered While Loading. Would you like to open the log file? (y/n)");
+                ConsoleWindow.SetConsoleShown(true);
+                Console.Write("Error encountered. Would you like to open the log file? (y/n) ");
                 if (Console.ReadKey().Key == ConsoleKey.Y)
                 {
                     Process p = new Process();
-                    p.StartInfo = new ProcessStartInfo("notepad.exe", Log.LogFile);
+                    p.StartInfo.UseShellExecute = true;
+                    p.StartInfo.FileName = Log.LogFileLocation;
                     p.Start();
                 }
             }

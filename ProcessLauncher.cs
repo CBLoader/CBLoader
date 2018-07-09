@@ -11,39 +11,22 @@ using System.Security;
 
 namespace CharacterBuilderLoader
 {
-    internal sealed class TargetDomainReturnData : MarshalByRefObject
-    {
-        internal bool ErrorLogged { get; set; }
-    }
-    
     [Serializable]
     internal sealed class TargetDomainCallback
     {
         private string rootDirectory;
-        private string logFile;
-        private bool verbose;
-
+        private LogRemoteReceiver remoteReceiver;
         private Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
-
-        private TargetDomainReturnData returnData = new TargetDomainReturnData();
-        public bool ErrorLogged { get => returnData.ErrorLogged; }
 
         public TargetDomainCallback(string rootDirectory)
         {
             this.rootDirectory = rootDirectory;
-
-            this.logFile = Log.LogFile;
-            this.verbose = Log.VerboseMode;
+            this.remoteReceiver = Log.RemoteReceiver;
         }
 
         public void InitLogging()
         {
-            Log.InitLoggingForChildDomain(logFile, verbose);
-        }
-
-        public void GetReturnData()
-        {
-            returnData.ErrorLogged = Log.ErrorLogged;
+            Log.InitLoggingForChildDomain(remoteReceiver);
         }
 
         private static string assemblyName(string name) =>
@@ -51,17 +34,16 @@ namespace CharacterBuilderLoader
 
         public void AddOverride(AssemblyDef assembly, bool expectObfusication)
         {
+            var name = assemblyName(assembly.FullName);
+            Log.Debug(" - Adding patched assembly for "+name);
+
             var settings = new ModuleWriterOptions(assembly.ManifestModule);
             if (expectObfusication)
                 settings.MetadataOptions.Flags |= MetadataFlags.KeepOldMaxStack;
 
-            var name = assemblyName(assembly.FullName);
-            Log.Debug("Adding patched assembly for "+name);
             var patchedData = new MemoryStream();
             assembly.Write(patchedData, settings);
             patchedAssemblies[name] = patchedData.ToArray();
-
-            File.WriteAllBytes(name + "_patched.dll", patchedData.ToArray());
         }
 
         public Assembly ResolveAssembly(Object sender, ResolveEventArgs ev)
@@ -167,7 +149,6 @@ namespace CharacterBuilderLoader
             foreach (var method in unhandledExceptionDef.Methods)
                 if (method.Parameters.Count > 0 && method.Parameters[0].Type.FullName == typeof(Exception).FullName)
                 {
-                    Log.Trace("   - Found exception handler in " + method.FullName);
                     set.Add(method.FullName);
                 }
             return set;
@@ -262,19 +243,19 @@ namespace CharacterBuilderLoader
         {
             var assembly = LoadAssembly(rootDirectory, "CharacterBuilder.exe");
 
-            Log.Debug(" - Finding SmartAssembly exception handler methods.");
+            Log.Debug("   - Finding SmartAssembly exception handler methods.");
             var handlers = FindExceptionHandlers(assembly);
 
-            Log.Debug(" - Stripping SmartAssembly exception handler methods.");
+            Log.Debug("   - Stripping SmartAssembly exception handler methods.");
             StripExceptionHandlers(assembly, handlers);
 
-            Log.Debug(" - Preventing initial attempt to load page on Wizards website.");
+            Log.Debug("   - Preventing initial attempt to load page on Wizards website.");
             RemoveTitleCallHome(assembly);
 
-            Log.Debug(" - Replacing SmartAssembly root exception handler.");
+            Log.Debug("   - Replacing SmartAssembly root exception handler.");
             PatchEntryPointHandler(assembly);
 
-            Log.Debug(" - Removing D&D Compendium links.");
+            Log.Debug("   - Removing D&D Compendium links.");
             RemoveCompendiumLinks(assembly);
 
             callback.AddOverride(assembly, true);
@@ -308,7 +289,7 @@ namespace CharacterBuilderLoader
         {
             var assembly = LoadAssembly(rootDirectory, "ApplicationUpdate.Client.dll");
 
-            Log.Debug(" - Injecting combined rules location into GetDecryptedStream");
+            Log.Debug("   - Injecting combined rules location into GetDecryptedStream");
             RedirectPath(assembly, redirectPath);
 
             callback.AddOverride(assembly, false);
@@ -316,16 +297,20 @@ namespace CharacterBuilderLoader
         
         public static void StartProcess(string rootDirectory, string[] args, string redirectPath)
         {
+            Log.Info("Preparing to start CharacterBuilder.exe");
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             redirectPath = Path.GetFullPath(redirectPath);
             var callback = new TargetDomainCallback(rootDirectory);
 
-            Log.Debug("Patching CharacterBuilder.exe");
+            Log.Debug(" - Patching CharacterBuilder.exe");
             PatchApplication(callback, rootDirectory);
 
-            Log.Debug("Patching ApplicationUpdate.Client.dll");
+            Log.Debug(" - Patching ApplicationUpdate.Client.dll");
             PatchApplicationUpdate(callback, rootDirectory, redirectPath);
 
-            Log.Debug("Creating application domain.");
+            Log.Debug(" - Creating application domain.");
             var setup = new AppDomainSetup();
             setup.ApplicationBase = rootDirectory;
             setup.DisallowCodeDownload = true;
@@ -343,18 +328,20 @@ namespace CharacterBuilderLoader
 #pragma warning restore CS0618
 
             foreach (var assembly in appDomain.GetAssemblies())
-                Log.Debug("Preloaded module: " + assembly);
+                Log.Debug("   - Preloaded module: " + assembly);
 
-            Log.Debug("Setting up environment.");
+            Log.Debug(" - Setting up environment.");
             Environment.CurrentDirectory = rootDirectory;
 
-            Log.Debug("Loading CharacterBuilder.exe");
+            stopwatch.Stop();
+            Log.Debug("Finished in " + stopwatch.ElapsedMilliseconds + " ms");
+            Log.Debug("");
+
+            Log.Info("Launching CharacterBuilder.exe");
             appDomain.DoCallBack(callback.InitLogging);
             appDomain.AssemblyResolve += callback.ResolveAssembly;
+            if (!Log.VerboseMode) ConsoleWindow.SetConsoleShown(false);
             appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args);
-            appDomain.DoCallBack(callback.GetReturnData);
-
-            if (callback.ErrorLogged) Log.ErrorLogged = true;
         }
     }
 }

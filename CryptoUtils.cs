@@ -80,7 +80,7 @@ namespace CharacterBuilderLoader
 
         public ParsedD20RulesEngine(string assemblyPath)
         {
-            Log.Debug("Parsing D20RulesEngine.dll");
+            Log.Debug(" - Parsing D20RulesEngine.dll");
 
             var assembly = AssemblyDef.Load(assemblyPath);
             var moduleBase = assembly.ManifestModule.Find("<Module>", false);
@@ -117,7 +117,6 @@ namespace CharacterBuilderLoader
                     method.Body.Instructions[i + 2].OpCode.OperandType == OperandType.InlineBrTarget)
                 {
                     var currentHash = (uint) (int) method.Body.Instructions[i + 1].Operand;
-                    Log.Debug(" - Comparison found in LoadRulesFile: i = " + i + ", hash = " + currentHash);
                     hashes[foundComparisons++] = currentHash;
                     if (foundComparisons == 3) break;
                 }
@@ -126,7 +125,7 @@ namespace CharacterBuilderLoader
             if (hashes[0] != hashes[2]) throw new Exception("hashes[0] != hashes[2] in LoadRulesFile.");
 
             // Output hash information.
-            Log.Debug("demoHash = " + hashes[0] + ", normalHash = " + hashes[1]);
+            Log.Trace("   - demoHash = " + hashes[0] + ", normalHash = " + hashes[1]);
             this.expectedDemoHash = hashes[0];
             this.expectedNormalHash = hashes[1];
         }
@@ -139,6 +138,7 @@ namespace CharacterBuilderLoader
 
         public ParsedKeyFile(Guid applicationId, string keyFile)
         {
+            Log.Debug(" - Parsing " + Path.GetFileName(keyFile));
             var document = XDocument.Load(keyFile);
 
             var applicationTag = document.Root.Elements()
@@ -163,6 +163,10 @@ namespace CharacterBuilderLoader
 
         public CryptoInfo(string baseDirectory)
         {
+            Log.Info("Loading encryption keys.");
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(baseDirectory, "D20RulesEngine.dll"));
             var parsedKeyFile = new ParsedKeyFile(CryptoUtils.CB_APP_ID, Path.Combine(baseDirectory, "HeroicDemo.update"));
 
@@ -173,6 +177,10 @@ namespace CharacterBuilderLoader
 
             var regPatcherPath = Path.Combine(baseDirectory, "RegPatcher.dat");
             this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
+
+            stopwatch.Stop();
+            Log.Debug("Finished in " + stopwatch.ElapsedMilliseconds + " ms");
+            Log.Debug("");
         }
 
         private string FixXmlHash(string str) =>

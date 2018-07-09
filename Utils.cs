@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using Microsoft.Win32;
 using System.Security.Cryptography;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace CharacterBuilderLoader
 {
@@ -28,7 +29,30 @@ namespace CharacterBuilderLoader
         }
     }
 
-    public class Utils
+    internal static class ConsoleWindow
+    {
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_HIDE = 0;
+        private const int SW_SHOW = 5;
+
+        public static void SetConsoleShown(bool show)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT &&
+                Environment.OSVersion.Platform != PlatformID.Win32S &&
+                Environment.OSVersion.Platform != PlatformID.Win32Windows) return;
+
+            var console = GetConsoleWindow();
+            if (console.ToInt64() == 0) return;
+            ShowWindow(console, show ? SW_SHOW : SW_HIDE);
+        }
+    }
+
+    internal static class Utils
     {
         public static void ExtractKeyFile(string filename)
         {

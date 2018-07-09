@@ -4,80 +4,97 @@ using System.IO;
 
 namespace CharacterBuilderLoader
 {
+    internal class LogRemoteReceiver : MarshalByRefObject
+    {
+        private StreamWriter outStream;
+        internal string LogFileLocation { get; private set; }
+        internal bool ErrorLogged { get; set; } = false;
+        internal bool VerboseMode { get; set; } = false;
+
+        public LogRemoteReceiver(string logFileLocation)
+        {
+            this.LogFileLocation = logFileLocation;
+
+            var file = File.Open(logFileLocation, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+            this.outStream = new StreamWriter(file);
+        }
+
+        public void WriteLogFile(string taggedMsg)
+        {
+            outStream.WriteLine(DateTime.Now.ToString() + " - " + taggedMsg);
+            outStream.Flush();
+        }
+    }
+
     public static class Log
     {
-        public static string LogFile { get; private set; }
-        public static bool ErrorLogged;
-        public static bool VerboseMode;
+        internal static LogRemoteReceiver RemoteReceiver { get; private set; }
+        private static string LogPrefix;
+
+        internal static string LogFileLocation { get => RemoteReceiver.LogFileLocation; }
+        internal static bool ErrorLogged { get => RemoteReceiver.ErrorLogged; }
+        internal static bool VerboseMode { get => RemoteReceiver.VerboseMode;
+                                           set => RemoteReceiver.VerboseMode = value; }
 
         internal static void InitLogging()
         {
-            LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CBLoader.log");
-            if (File.Exists(LogFile)) File.WriteAllText(LogFile, "");
+            RemoteReceiver = new LogRemoteReceiver(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CBLoader.log"));
+            LogPrefix = " ";
         }
-        internal static void InitLoggingForChildDomain(string logFile, bool verbose)
+        internal static void InitLoggingForChildDomain(LogRemoteReceiver remoteReceiver)
         {
-            LogFile = logFile;
-            VerboseMode = verbose;
+            RemoteReceiver = remoteReceiver;
+            LogPrefix = "*";
         }
 
         public static void Trace(string msg)
         {
-            writeToFile("Trace: " + msg);
+            RemoteReceiver.WriteLogFile(LogPrefix + "Trace: " + msg);
         }
 
         public static void Debug(string msg)
         {
-            if (VerboseMode)
-            {
-                Console.WriteLine("Debug: " + msg);
-            }
-            writeToFile("Debug: " + msg);
+            if (VerboseMode) Console.WriteLine(msg);
+            RemoteReceiver.WriteLogFile(LogPrefix + "Debug: " + msg);
         }
 
         public static void Info(string msg)
         {
             Console.WriteLine(msg);
-            writeToFile("INFO: " + msg);
+            RemoteReceiver.WriteLogFile(LogPrefix + "Info : " + msg);
         }
 
         public static void Error(string msg)
         {
-            ErrorLogged = true;
-            string taggedMsg = "ERROR: " + msg;
-            Console.WriteLine(taggedMsg);
-            writeToFile(taggedMsg);
+            RemoteReceiver.ErrorLogged = true;
+            Console.WriteLine("ERROR: " + msg);
+            RemoteReceiver.WriteLogFile(LogPrefix + "ERROR: " + msg);
         }
 
-        private static void writeToFile(string taggedMsg)
+        private static string ExceptionMessage(Exception e, bool trace)
         {
-            if (LogFile == null)
-                throw new Exception("Logging not initialized.");
-            using (StreamWriter sw = new StreamWriter(new FileStream(LogFile, FileMode.Append)))
-                sw.WriteLine(DateTime.Now.ToString() + " - " + taggedMsg);
+            StringBuilder sb = new StringBuilder();
+            Exception current = e;
+            while (current != null)
+            {
+                if (current != e)
+                    sb.Append("Caused by: ");
+                sb.AppendLine(current.Message);
+                if (trace)
+                    sb.AppendLine(current.StackTrace);
+
+                current = current.InnerException;
+                if (trace && current != null)
+                    sb.AppendLine();
+            }
+            return sb.ToString();
         }
 
         public static void Error(string msg, Exception e)
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(msg);
-            Exception current = e;
-            int tabCount = 0;
-            while (current != null)
-            {
-                sb.Append("Inner Exception: ");
-                sb.AppendLine("".PadLeft(tabCount * 3, ' ') + current.Message);
-                if (VerboseMode)
-                {
-                    sb.AppendLine("".PadLeft(tabCount * 3, ' ') + current.StackTrace);
-                    sb.AppendLine("".PadLeft(80, '-'));
-                    sb.AppendLine();
-                }
-
-                current = current.InnerException;
-                tabCount++;
-            }
-            Error(sb.ToString());
+            RemoteReceiver.ErrorLogged = true;
+            Console.WriteLine("ERROR: " + msg + "\n" + ExceptionMessage(e, VerboseMode));
+            RemoteReceiver.WriteLogFile(LogPrefix + "ERROR: " + msg + "\n" + ExceptionMessage(e, true));
         }
     }
 }
