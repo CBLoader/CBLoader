@@ -15,13 +15,10 @@ namespace CharacterBuilderLoader
     /// </summary>
     public class FileManager
     {
-        public const string APPLICATION_ID = "2a1ddbc4-4503-4392-9548-d0010d1ba9b1";
         public const string ENCRYPTED_FILENAME = "combined.dnd40.encrypted";
-        private const string GENERAL_EXTRACT_ERROR = "General Error extracting file. Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriate write permissions.";
-        private const string DECRYPT_ERROR = "Error decrypting the rules file. This usually indicates a key problem. Check into using a keyfile!";
-            
-        public readonly Guid applicationID = new Guid(APPLICATION_ID);
-
+        private const string GENERAL_EXTRACT_ERROR = 
+            "Unknown error extracting combined.dnd40.encrypted. " +
+            "Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriate permissions.";
 
         private List<string> customFolders;
         private List<string> ignoredParts;
@@ -64,11 +61,6 @@ namespace CharacterBuilderLoader
         private static string CoreFileName
         {
             get { return BasePath + "combined.dnd40.main"; }
-        }
-
-        private static string PartFileName
-        {
-            get { return BasePath + "combined.dnd40.part"; }
         }
 
         public bool UseNewMergeLogic { get; set; }
@@ -144,7 +136,7 @@ namespace CharacterBuilderLoader
         public void ExtractAndMerge(bool forced, CryptoInfo ci)
         {
             Log.Debug("Checking for merge and extract.");
-            ExtractFile(forced);
+            ExtractFile(forced, ci);
             MergeFiles(forced, ci);
         }
 
@@ -219,7 +211,6 @@ namespace CharacterBuilderLoader
             List<FileInfo> customFiles = customFolders.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
             customFiles.RemoveAll(f => IgnoredParts.Contains(f.Name.ToLower().Trim()));
-            customFiles.Add(new FileInfo(PartFileName));
 
             // bail out if nothing is modified
             if (!forced && File.Exists(MergedPath) && currentlyMerged.Count > 0)
@@ -262,7 +253,7 @@ namespace CharacterBuilderLoader
                     MergeFile(main, fi,idDictionary);
             if (UseNewMergeLogic && idDictionary.Keys.FirstOrDefault() != null) // There is no first element, therefore there's nothing in there.  Skip the enumeration.
                 DeQueueMerges(main, idDictionary);
-            SaveEncryptedDocument(main, CryptoUtils.CB_APP_ID, CryptoUtils.INJECT_UPDATE_ID, Convert.FromBase64String(CryptoUtils.INJECT_UPDATE_KEY), ci, MergedPath);
+            ci.SaveRulesFile(main, MergedPath);
 
             using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
             {
@@ -497,33 +488,7 @@ namespace CharacterBuilderLoader
                 SaveDocument(xw, main.Root);
             }
         }
-
-        /// <summary>
-        /// Saves the specified document to the specified filename
-        /// </summary>
-        private void SaveEncryptedDocument(XDocument main, Guid applicationGuid, Guid updateGuid, byte[] keyData, CryptoInfo ci, string filename)
-        {
-            var memoryWriter = new MemoryStream();
-            var xw = new XmlTextWriter(memoryWriter, Encoding.UTF8);
-            xw.Formatting = Formatting.Indented;
-            SaveDocument(xw, main.Root);
-            xw.Flush();
-            var rawXml = Encoding.UTF8.GetString(memoryWriter.ToArray());
-            var rawData = ci.FixXmlHash(rawXml);
-            byte[] bytes = Encoding.UTF8.GetBytes(rawData);
-
-            var debugFile = File.Open("combined_temp.xml", FileMode.Create);
-            debugFile.Write(bytes, 0, bytes.Length);
-            debugFile.Dispose();
-
-            var file = File.Open(filename, FileMode.Create);
-            using (var crypto = CryptoUtils.GetEncryptingStream(file, applicationGuid, updateGuid, keyData))
-            {
-                crypto.Write(bytes, 0, bytes.Length);
-            }
-            file.Dispose();
-        }
-
+        
         /// <summary>
         /// Writing this out via an xmlwriter, XDocument.Save overrites important line-ending information
         /// </summary>
@@ -754,46 +719,27 @@ namespace CharacterBuilderLoader
         /// <param name="forced">If true, the .encrypted file will always be extracted. Otherwise it is only extracted
         /// if it is updated.</param>
         /// </summary>
-        private void ExtractFile(bool forced)
+        private void ExtractFile(bool forced, CryptoInfo ci)
         {
             if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CoreFileName))
             {
                 Log.Info("Extracting " + CoreFileName);
                 try
                 {
-                    TryExtract();
+                    using (StreamReader sr = new StreamReader(ci.OpenEncryptedFile(ENCRYPTED_FILENAME)))
+                    using (StreamWriter sw = new StreamWriter(CoreFileName))
+                    {
+                        string xmlData = sr.ReadToEnd();
+                        sw.Write(xmlData);
+                    }
                 }
                 catch (Exception e)
                 {
                     throw new Exception(GENERAL_EXTRACT_ERROR, e);
                 }
-                if (!File.Exists(PartFileName))
-                {
-                    using (StreamWriter sw = new StreamWriter(PartFileName))
-                    {
-                        sw.WriteLine("<D20Rules game-system=\"D&amp;D4E\">");
-                        sw.WriteLine("</D20Rules>");
-                    }
-                }
             }
         }
-
-        private void TryExtract()
-        {
-            using (StreamReader kr = new StreamReader(File.Open("RegPatcher.dat", FileMode.Open))) {
-                var key = kr.ReadToEnd();
-                var file = File.Open(ENCRYPTED_FILENAME, FileMode.Open);
-                var crypto = CryptoUtils.GetDecryptingStream(file, CryptoUtils.CB_APP_ID, guid => Convert.FromBase64String(key));
-                using (StreamReader sr = new StreamReader(crypto))
-                {
-                    using (StreamWriter sw = new StreamWriter(CoreFileName))
-                    {
-                        sw.Write(sr.ReadToEnd());
-                    }
-                }
-            }
-        }
-
+        
         public bool DoUpdates(bool forced)
         {
             List<FileInfo> customFiles = customFolders.SelectMany(

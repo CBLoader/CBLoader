@@ -59,14 +59,8 @@ namespace CharacterBuilderLoader
     public sealed class ProcessLauncher
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
-        private static string GET_ALGORITHM_WITH_KEY =
-            "System.Security.Cryptography.SymmetricAlgorithm ApplicationUpdate.Client.CommonMethods::GetAlgorithmWithKey(System.Guid,System.Guid)";
         private static string GET_DECRYPTED_STREAM =
             "System.IO.Stream ApplicationUpdate.Client.CommonMethods::GetDecryptedStream(System.Guid,System.String)";
-        private static string KEY_STORE =
-            "ApplicationUpdate.Client.IKeyInformationStore ApplicationUpdate.Client.CommonMethods::KeyStore";
-        private static string GET_KEY_BLOB =
-            "System.Byte[] ApplicationUpdate.Client.IKeyInformationStore::GetKeyBlob(System.Guid,System.Guid)";
 
         private static void RedirectPath(MethodDefinition method, string redirectPath)
         {
@@ -95,68 +89,6 @@ namespace CharacterBuilderLoader
             method.Body.OptimizeMacros();
         }
 
-        private static void InjectUpdateKey(MethodDefinition method)
-        {
-            var il = method.Body.GetILProcessor();
-
-            // Find the call to IKeyInformationStore::GetKeyBlob
-            Instruction virtualCallStart = null, virtualCallEnd = null;
-            for (int i = 0; i < method.Body.Instructions.Count - 3; i++)
-            {
-                if (method.Body.Instructions[i + 0].OpCode == OpCodes.Ldsfld &&
-                    ((FieldReference) method.Body.Instructions[i + 0].Operand).FullName == KEY_STORE &&
-                    method.Body.Instructions[i + 1].OpCode == OpCodes.Ldarg_0 &&
-                    method.Body.Instructions[i + 2].OpCode == OpCodes.Ldarg_1 &&
-                    method.Body.Instructions[i + 3].OpCode == OpCodes.Callvirt &&
-                    ((MethodReference) method.Body.Instructions[i + 3].Operand).FullName == GET_KEY_BLOB)
-                {
-                    virtualCallStart = method.Body.Instructions[i + 0];
-                    virtualCallEnd   = method.Body.Instructions[i + 3];
-                }
-            }
-            if (virtualCallStart == null) throw new Exception("Cannot find GetAlgorithmWithKey patch point.");
-
-            // Generate a temporary variable we will construct our GUIDs in.
-            var uuid_temp = new VariableDefinition(method.Module.ImportReference(typeof(Guid)));
-            method.Body.Variables.Add(uuid_temp);
-
-            // Resolve a few methods we will call.
-            var uuid_ctor = method.Module.ImportReference(typeof(Guid).GetConstructor(new Type[] { typeof(string) }));
-            var uuid_eq = method.Module.ImportReference(typeof(Guid).GetMethod("op_Equality"));
-            var from_base64 = method.Module.ImportReference(typeof(Convert).GetMethod("FromBase64String"));
-
-            // Check if the application Guid matches Character Builder's.
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldarg_0));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldloca, uuid_temp));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldstr, CryptoUtils.CB_APP_ID.ToString()));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, uuid_ctor));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldloc, uuid_temp));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, uuid_eq));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Brfalse, virtualCallStart));
-
-            // Check if the update Guid matches our injection update ID.
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldarg_1));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldloca, uuid_temp));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldstr, CryptoUtils.INJECT_UPDATE_ID.ToString()));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, uuid_ctor));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldloc, uuid_temp));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, uuid_eq));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Brfalse, virtualCallStart));
-
-            // Load our custom key, bypassing IKeyInformationStore entirely.
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldstr, CryptoUtils.INJECT_UPDATE_KEY.ToString()));
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, from_base64));
-            if (Log.VerboseMode)
-            {
-                il.InsertBefore(virtualCallStart, il.Create(OpCodes.Ldstr, "ApplicationUpdate.Client: Custom key injected."));
-                il.InsertBefore(virtualCallStart, il.Create(OpCodes.Call, 
-                    method.Module.ImportReference(typeof(Console).GetMethod("WriteLine", new Type[] { typeof(String) }))));
-            }
-            il.InsertBefore(virtualCallStart, il.Create(OpCodes.Br, virtualCallEnd.Next));
-
-            method.Body.OptimizeMacros();
-        }
-
         private static byte[] PatchApplicationUpdate(string filename, string redirectPath)
         {
             var assembly = AssemblyDefinition.ReadAssembly(filename);
@@ -165,9 +97,6 @@ namespace CharacterBuilderLoader
 
             var commonMethodsDef = assembly.MainModule.Types
                 .First(t => t.FullName == "ApplicationUpdate.Client.CommonMethods");
-
-            Log.Debug(" - Injecting update key into GetAlgorithmWithKey");
-            InjectUpdateKey(commonMethodsDef.Methods.First(m => m.FullName == GET_ALGORITHM_WITH_KEY));
 
             Log.Debug(" - Injecting combined rules location into GetDecryptedStream");
             RedirectPath(commonMethodsDef.Methods.First(m => m.FullName == GET_DECRYPTED_STREAM), redirectPath);
@@ -206,9 +135,10 @@ namespace CharacterBuilderLoader
 #pragma warning restore CS0618
 
             Log.Debug("Loading CharacterBuilder.exe");
-            var thread = new Thread(() => appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args));
+            var thread = new Thread(() => appDomain.ExecuteAssemblyByName("CharacterBuilder-cleaned", null, args));
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
         }
     }
 }
+ 

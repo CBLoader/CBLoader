@@ -7,6 +7,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
+using System.Xml.Linq;
 
 namespace CharacterBuilderLoader
 {
@@ -75,7 +77,7 @@ namespace CharacterBuilderLoader
 
     internal sealed class ParsedD20RulesEngine
     {
-        public readonly uint expectedHeroesUpdateHash, expectedNormalHash;
+        public readonly uint expectedDemoHash, expectedNormalHash;
 
         public ParsedD20RulesEngine(string assemblyPath)
         {
@@ -125,28 +127,89 @@ namespace CharacterBuilderLoader
             if (hashes[0] != hashes[2]) throw new Exception("hashes[0] != hashes[2] in LoadRulesFile.");
 
             // Output hash information.
-            Log.Debug("heroesUpdateHash = " + hashes[0] + ", normalHash = " + hashes[1]);
-            this.expectedHeroesUpdateHash = hashes[0];
+            Log.Debug("demoHash = " + hashes[0] + ", normalHash = " + hashes[1]);
+            this.expectedDemoHash = hashes[0];
             this.expectedNormalHash = hashes[1];
+        }
+    }
+
+    internal sealed class ParsedKeyFile
+    {
+        public readonly Guid currentUpdateGuid;
+        public readonly byte[] keyData;
+
+        public ParsedKeyFile(Guid applicationId, string keyFile)
+        {
+            var document = XDocument.Load(keyFile);
+
+            var applicationTag = document.Root.Elements()
+                .First(x => x.Attribute("ID").Value == applicationId.ToString());
+            var currentUpdateGuid = new Guid(applicationTag.Attribute("CurrentUpdate").Value);
+            var updateTag = applicationTag.Element("Update" + currentUpdateGuid);
+            var updateKey = Convert.FromBase64String(updateTag.Value.ToString());
+
+            this.currentUpdateGuid = currentUpdateGuid;
+            this.keyData = updateKey;
         }
     }
 
     public sealed class CryptoInfo
     {
-        public readonly uint expectedHeroesUpdateHash, expectedNormalHash;
+        public readonly uint expectedDemoHash, expectedNormalHash;
+
+        public readonly Guid demoUpdateGuid;
+        public readonly byte[] demoKeyData;
+
+        public readonly byte[] regPatcherKeyData;
 
         public CryptoInfo(string baseDirectory)
         {
-            var d20EnginePath = Path.Combine(baseDirectory, "D20RulesEngine.dll");
-            var parsedD20Engine = new ParsedD20RulesEngine(d20EnginePath);
+            var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(baseDirectory, "D20RulesEngine.dll"));
+            var parsedKeyFile = new ParsedKeyFile(CryptoUtils.CB_APP_ID, Path.Combine(baseDirectory, "HeroicDemo.update"));
 
-            this.expectedHeroesUpdateHash = parsedD20Engine.expectedHeroesUpdateHash;
+            this.expectedDemoHash = parsedD20Engine.expectedDemoHash;
             this.expectedNormalHash = parsedD20Engine.expectedNormalHash;
+            this.demoUpdateGuid = parsedKeyFile.currentUpdateGuid;
+            this.demoKeyData = parsedKeyFile.keyData;
+
+            var regPatcherPath = Path.Combine(baseDirectory, "RegPatcher.dat");
+            this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
         }
 
-        public string FixXmlHash(string str)
+        private string FixXmlHash(string str)
         {
-            return CryptoUtils.FixXmlHash(str, this.expectedHeroesUpdateHash);
+            return CryptoUtils.FixXmlHash(str, this.expectedDemoHash);
+        }
+        
+        private Stream GetXmlEncryptingStream(Stream s)
+        {
+            return CryptoUtils.GetEncryptingStream(s, CryptoUtils.CB_APP_ID, this.demoUpdateGuid, this.demoKeyData);
+        }
+        
+        public void SaveRulesFile(XDocument document, string filename)
+        {
+            using (var crypt = GetXmlEncryptingStream(File.Open(filename, FileMode.Create)))
+            {
+                var bytes = Encoding.UTF8.GetBytes(FixXmlHash(document.ToString()));
+                crypt.Write(bytes, 0, bytes.Length);
+            }
+        }
+
+        private byte[] KeyForGuid(Guid updateId)
+        {
+            if (updateId == demoUpdateGuid) return demoKeyData;
+
+            if (regPatcherKeyData == null)
+            {
+                Log.Error("Could not retrieve key data from RegPatcher.dat.\nPlease update the Character Builder to the April 2009 patch or later.");
+            }
+
+            return regPatcherKeyData;
+        }
+
+        public Stream OpenEncryptedFile(string filename)
+        {
+            return CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open), CryptoUtils.CB_APP_ID, KeyForGuid);
         }
     }
 
@@ -154,10 +217,7 @@ namespace CharacterBuilderLoader
     {
         public static Guid CB_APP_ID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
         public static Guid HEROIC_DEMO_UPDATE_ID = new Guid("19806aaa-6d71-425d-9dcf-54e6bb6b1e57");
-
-        public static Guid INJECT_UPDATE_ID = new Guid("f8ae4afc-dd59-46df-b467-0071d90e953d");
-        public static string INJECT_UPDATE_KEY = "1Asic5ZWYplb3pdSZ7KcMP+8kuxQvCW02bNdlUtMT44=";
-
+        
         private static string XML_MARKER = "<!-- This file has been edited by CBLoader -->";
 
         public static bool IsXmlPatched(string str)
@@ -172,9 +232,10 @@ namespace CharacterBuilderLoader
         }
         public static string FixXmlHash(string str, uint target_hash)
         {
-            if (str.StartsWith("\uFEFF"))
+            if (str[0] == '\uFEFF')
             {
                 // This is apparently stripped by ReadToEnd.
+                Log.Debug("Stripping UTF-8 BOM.");
                 str = str.Substring(1, str.Length - 1);
             }
             str = str.Replace("\r\n", "\n").Replace('\r', '\n');

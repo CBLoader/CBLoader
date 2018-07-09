@@ -32,12 +32,12 @@ namespace CharacterBuilderLoader
 
                 if (sf.CheckForUpdates && sf.UpdateFirst)
                     fm.DoUpdates(sf.ForcedReload);
-                //if (!sf.Mergelater)
-                //    fm.ExtractAndMerge(sf.ForcedReload, ci);
+                if (!sf.Mergelater)
+                    fm.ExtractAndMerge(sf.ForcedReload, ci);
                 if (sf.LoadExec)
                     ProcessLauncher.StartProcess(basePath, sf.Args.ToArray(), FileManager.MergedPath);
-                //if (sf.Mergelater)
-                //    fm.ExtractAndMerge(sf.ForcedReload, ci);
+                if (sf.Mergelater)
+                    fm.ExtractAndMerge(sf.ForcedReload, ci);
 
                 Utils.CheckIfUserAssoc();
                 // And here's the better alternated to DCUpdater.
