@@ -76,7 +76,7 @@ namespace CharacterBuilderLoader
         }
     }
 
-    public sealed class ProcessLauncher
+    public static class ProcessLauncher
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
 

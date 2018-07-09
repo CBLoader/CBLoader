@@ -1,13 +1,43 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
 using System.Xml.Serialization;
 
 namespace CharacterBuilderLoader
 {
-    public class StartupFlags
+    [Serializable]
+    [XmlRoot("Settings", IsNullable = false)]
+    public sealed class SettingsFileSchema
+    {
+        [XmlArrayItem("Arg", IsNullable = false)]
+        public string[] RawArgs { get; set; }
+        [XmlArrayItem("Custom", IsNullable = false)]
+        public string[] Folders { get; set; }
+        [XmlArrayItem("Part", IsNullable = false)]
+        public string[] Ignore { get; set; }
+
+        public string BasePath { get; set; }
+        public string CBPath { get; set; }
+        public string KeyFile { get; set; }
+
+        public bool FastMode { get; set; }
+        public bool VerboseMode { get; set; }
+        public bool AlwaysRemerge { get; set; }
+        public bool UpdateFirst { get; set; }
+        public bool LaunchBuilder { get; set; }
+        public bool NewMergeLogic { get; set; }
+        public bool ShowChangelog { get; set; }
+
+        [XmlIgnore] public bool FastModeSpecified { get; set; }
+        [XmlIgnore] public bool VerboseModeSpecified { get; set; }
+        [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
+        [XmlIgnore] public bool UpdateFirstSpecified { get; set; }
+        [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
+        [XmlIgnore] public bool NewMergeLogicSpecified { get; set; }
+        [XmlIgnore] public bool ShowChangelogSpecified { get; set; }
+    }
+
+    public sealed class StartupFlags
     {
         public const string CONFIG_FILENAME = "default.cbconfig";
 
@@ -18,7 +48,7 @@ namespace CharacterBuilderLoader
         public bool UpdateFirst { get; set; }
         public bool CheckForUpdates { get; set; }
 
-        private static readonly XmlSerializer configSerializer = new XmlSerializer(typeof(SettingsType));
+        private static readonly XmlSerializer configSerializer = new XmlSerializer(typeof(SettingsFileSchema));
 
         public StartupFlags()
         {
@@ -126,10 +156,10 @@ namespace CharacterBuilderLoader
             Log.Debug("Loading Config File: " + fileName);
             try
             {
-                SettingsType settings;
+                SettingsFileSchema settings;
                 using (StreamReader sr = new StreamReader(fileName))
                 {
-                    settings = (SettingsType)configSerializer.Deserialize(sr);
+                    settings = (SettingsFileSchema)configSerializer.Deserialize(sr);
                 }
                 if (settings.Folders != null)
                     foreach (string customFolder in settings.Folders)

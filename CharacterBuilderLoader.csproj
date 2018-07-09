@@ -84,9 +84,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="cbconfig.cs">
-      <DependentUpon>cbconfig.xsd</DependentUpon>
-    </Compile>
     <Compile Include="FileManager.cs" />
     <Compile Include="LastMergedFileInfo.cs" />
     <Compile Include="Log.cs" />
@@ -105,9 +102,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="cbconfig.xsd">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="Custom\sample.part">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
