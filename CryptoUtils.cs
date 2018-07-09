@@ -1,6 +1,5 @@
-﻿using Mono.Cecil;
-using Mono.Cecil.Cil;
-using Mono.Cecil.Rocks;
+﻿using dnlib.DotNet;
+using dnlib.DotNet.Emit;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -83,18 +82,18 @@ namespace CharacterBuilderLoader
         {
             Log.Debug("Parsing D20RulesEngine.dll");
 
-            var assembly = AssemblyDefinition.ReadAssembly(assemblyPath);
-            var moduleBase = assembly.MainModule.Types.First(x => x.FullName == "<Module>");
-            var method = moduleBase.Methods.First(x => x.FullName.Contains("<Module>::D20RulesEngine.LoadRulesFile("));
+            var assembly = AssemblyDef.Load(assemblyPath);
+            var moduleBase = assembly.ManifestModule.Find("<Module>", false);
+            var method = moduleBase.FindMethod("D20RulesEngine.LoadRulesFile");
 
-            method.Body.SimplifyMacros();
+            method.Body.SimplifyMacros(method.Parameters);
 
             // Find call to ComputeHash
             int computeHashStart = -1;
             for (int i = 0; i < method.Body.Instructions.Count; i++)
             {
                 if (method.Body.Instructions[i].OpCode == OpCodes.Call &&
-                    ((MethodReference)method.Body.Instructions[i].Operand).FullName.Contains("<Module>::GenerateHash("))
+                    ((IMethod) method.Body.Instructions[i].Operand).Name == "GenerateHash")
                 {
                     computeHashStart = i;
                     break;
@@ -105,7 +104,7 @@ namespace CharacterBuilderLoader
             // Find the local the hash is stored in.
             if (method.Body.Instructions[computeHashStart + 1].OpCode != OpCodes.Stloc)
                 throw new Exception("stloc does not follow call to ComputeHash in LoadRulesFile.");
-            var hashVar = (VariableReference) method.Body.Instructions[computeHashStart + 1].Operand;
+            var hashVar = (IVariable) method.Body.Instructions[computeHashStart + 1].Operand;
 
             // Find the three comparisons that should follow.
             var hashes = new uint[3];
@@ -113,7 +112,7 @@ namespace CharacterBuilderLoader
             for (int i = computeHashStart; i < Math.Min(method.Body.Instructions.Count - 2, computeHashStart + 30); i++)
             {
                 if (method.Body.Instructions[i + 0].OpCode == OpCodes.Ldloc &&
-                    ((VariableReference) method.Body.Instructions[i + 0].Operand).Index == hashVar.Index &&
+                    ((IVariable) method.Body.Instructions[i + 0].Operand).Index == hashVar.Index &&
                     method.Body.Instructions[i + 1].OpCode == OpCodes.Ldc_I4 &&
                     method.Body.Instructions[i + 2].OpCode.OperandType == OperandType.InlineBrTarget)
                 {
@@ -176,15 +175,11 @@ namespace CharacterBuilderLoader
             this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
         }
 
-        private string FixXmlHash(string str)
-        {
-            return CryptoUtils.FixXmlHash(str, this.expectedDemoHash);
-        }
+        private string FixXmlHash(string str) =>
+            CryptoUtils.FixXmlHash(str, this.expectedDemoHash);
         
-        private Stream GetXmlEncryptingStream(Stream s)
-        {
-            return CryptoUtils.GetEncryptingStream(s, CryptoUtils.CB_APP_ID, this.demoUpdateGuid, this.demoKeyData);
-        }
+        private Stream GetXmlEncryptingStream(Stream s) =>
+            CryptoUtils.GetEncryptingStream(s, CryptoUtils.CB_APP_ID, this.demoUpdateGuid, this.demoKeyData);
         
         public void SaveRulesFile(XDocument document, string filename)
         {
@@ -207,10 +202,8 @@ namespace CharacterBuilderLoader
             return regPatcherKeyData;
         }
 
-        public Stream OpenEncryptedFile(string filename)
-        {
-            return CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open), CryptoUtils.CB_APP_ID, KeyForGuid);
-        }
+        public Stream OpenEncryptedFile(string filename) =>
+            CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open), CryptoUtils.CB_APP_ID, KeyForGuid);
     }
 
     public sealed class CryptoUtils

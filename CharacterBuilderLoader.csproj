@@ -47,7 +47,7 @@
     <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>none</DebugType>
+    <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
@@ -56,7 +56,7 @@
     <PlatformTarget>x86</PlatformTarget>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <DebugSymbols>false</DebugSymbols>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -68,12 +68,6 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Mono.Cecil, Version=0.10.0.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>packages\Mono.Cecil.0.10.0\lib\net35\Mono.Cecil.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Cecil.Rocks, Version=0.10.0.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>packages\Mono.Cecil.0.10.0\lib\net35\Mono.Cecil.Rocks.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -139,7 +133,6 @@
     <None Include="icons\mres-large.ico" />
     <None Include="icons\mres-med.ico" />
     <None Include="icons\mres-small.ico" />
-    <None Include="packages.config" />
     <None Include="Properties\app.manifest" />
   </ItemGroup>
   <ItemGroup>
@@ -165,7 +158,12 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="dnlib\src\dnlib.csproj">
+      <Project>{fdfc1237-143f-4919-8318-4926901f4639}</Project>
+      <Name>dnlib</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <MSBuildCommunityTasksPath>$(MSBuildProjectDirectory)\.build</MSBuildCommunityTasksPath>

@@ -2,9 +2,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Xml.Linq;
-using Microsoft.Win32;
 
 namespace CharacterBuilderLoader
 {

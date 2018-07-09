@@ -21,6 +21,11 @@ namespace CharacterBuilderLoader
             VerboseMode = verbose;
         }
 
+        public static void Trace(string msg)
+        {
+            writeToFile("Trace: " + msg);
+        }
+
         public static void Debug(string msg)
         {
             if (VerboseMode)

@@ -2,9 +2,32 @@
 using System.Xml.Linq;
 using Microsoft.Win32;
 using System.Security.Cryptography;
+using System.Collections.Generic;
 
 namespace CharacterBuilderLoader
 {
+    internal static class IListRangeOps
+    {
+        public static void AddRange<T>(this IList<T> list, IEnumerable<T> items)
+        {
+            if (list is List<T>)
+                ((List<T>)list).AddRange(items);
+            else foreach (var item in items)
+                list.Add(item);
+        }
+
+        public static void InsertRange<T>(this IList<T> list, int start, IEnumerable<T> items)
+        {
+            if (list is List<T>)
+                ((List<T>)list).InsertRange(start, items);
+            else foreach (var item in items)
+            {
+                list.Insert(start, item);
+                start++;
+            }
+        }
+    }
+
     public class Utils
     {
         public static void ExtractKeyFile(string filename)
