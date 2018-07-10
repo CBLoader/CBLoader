@@ -2,7 +2,7 @@
 using System.Text;
 using System.IO;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
     internal class LogRemoteReceiver : MarshalByRefObject
     {
@@ -71,7 +71,7 @@ namespace CharacterBuilderLoader
             RemoteReceiver.WriteLogFile(LogPrefix + "ERROR: " + msg);
         }
 
-        private static string ExceptionMessage(Exception e, bool trace)
+        private static string ExceptionMessage(Exception e, bool verbose)
         {
             StringBuilder sb = new StringBuilder();
             Exception current = e;
@@ -79,12 +79,12 @@ namespace CharacterBuilderLoader
             {
                 if (current != e)
                     sb.Append("Caused by: ");
-                sb.AppendLine(current.Message);
-                if (trace)
-                    sb.AppendLine(current.StackTrace);
+                var header = !verbose || current.GetType() == typeof(Exception) ? "" : current.GetType().FullName + ": ";
+                sb.AppendLine(header + current.Message);
+                if (verbose) sb.AppendLine(current.StackTrace);
 
                 current = current.InnerException;
-                if (trace && current != null)
+                if (verbose && current != null)
                     sb.AppendLine();
             }
             return sb.ToString();

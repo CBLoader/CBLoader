@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
     internal static class IListRangeOps
     {
@@ -54,6 +54,15 @@ namespace CharacterBuilderLoader
 
     internal static class Utils
     {
+        private static string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
+        public static string GetInstallPath()
+        {
+            var reg = Registry.LocalMachine
+                .OpenSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\" + CB_INSTALL_ID);
+            if (reg == null) return null;
+            else return reg.GetValue("InstallLocation").ToString();
+        }
+
         public static void ExtractKeyFile(string filename)
         {
             RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")

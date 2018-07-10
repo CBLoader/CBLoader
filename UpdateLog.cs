@@ -5,7 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
-namespace CharacterBuilderLoader
+
+namespace CBLoader
 {
 	internal class UpdateLog
 	{

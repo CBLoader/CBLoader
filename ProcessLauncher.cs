@@ -9,48 +9,37 @@ using System.Linq;
 using System.Reflection;
 using System.Security;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
-    [Serializable]
-    internal sealed class TargetDomainCallback
+    internal sealed class TargetDomainCallback : MarshalByRefObject
     {
         private string rootDirectory;
-        private LogRemoteReceiver remoteReceiver;
         private Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
 
-        public TargetDomainCallback(string rootDirectory)
+        private readonly Assembly myAssembly = Assembly.GetAssembly(typeof(TargetDomainCallback));
+
+        internal void Init(string rootDirectory, LogRemoteReceiver logRemote)
         {
             this.rootDirectory = rootDirectory;
-            this.remoteReceiver = Log.RemoteReceiver;
+            Log.InitLoggingForChildDomain(logRemote);
+            AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
         }
-
-        public void InitLogging()
+        internal void AddOverride(string name, byte[] data)
         {
-            Log.InitLoggingForChildDomain(remoteReceiver);
+            patchedAssemblies[name] = data;
         }
 
-        private static string assemblyName(string name) =>
-            name.Split(',')[0].Trim();
-
-        public void AddOverride(AssemblyDef assembly, bool expectObfusication)
-        {
-            var name = assemblyName(assembly.FullName);
-            Log.Debug(" - Adding patched assembly for "+name);
-
-            var settings = new ModuleWriterOptions(assembly.ManifestModule);
-            if (expectObfusication)
-                settings.MetadataOptions.Flags |= MetadataFlags.KeepOldMaxStack;
-
-            var patchedData = new MemoryStream();
-            assembly.Write(patchedData, settings);
-            patchedAssemblies[name] = patchedData.ToArray();
-        }
-
-        public Assembly ResolveAssembly(Object sender, ResolveEventArgs ev)
+        private Assembly ResolveAssembly(Object sender, ResolveEventArgs ev)
         {
             Log.Debug("Handling ResolveAssembly event for " + ev.Name);
+            
+            if (ev.Name == myAssembly.FullName)
+            {
+                Log.Debug(" - Using callback assembly");
+                return myAssembly;
+            }
 
-            string name = assemblyName(ev.Name);
+            string name = ev.Name.Split(',')[0].Trim();
 
             if (patchedAssemblies.ContainsKey(name))
             {
@@ -76,7 +65,7 @@ namespace CharacterBuilderLoader
         }
     }
 
-    public static class ProcessLauncher
+    internal static class ProcessLauncher
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
 
@@ -87,6 +76,19 @@ namespace CharacterBuilderLoader
             var assembly = AssemblyDef.Load(path);
             Trace.Assert(assembly.Name == expectedName, name + " does not contain the correct assembly!");
             return assembly;
+        }
+
+        private static void AddOverride(TargetDomainCallback callback, AssemblyDef assembly, bool expectObfusication)
+        {
+            Log.Debug(" - Adding patched assembly for " + assembly.Name);
+
+            var settings = new ModuleWriterOptions(assembly.ManifestModule);
+            if (expectObfusication)
+                settings.MetadataOptions.Flags |= MetadataFlags.KeepOldMaxStack;
+
+            var patchedData = new MemoryStream();
+            assembly.Write(patchedData, settings);
+            callback.AddOverride(assembly.Name, patchedData.ToArray());
         }
         
         private static void StripExceptionHandlers(MethodDef method, HashSet<string> handlers)
@@ -258,7 +260,7 @@ namespace CharacterBuilderLoader
             Log.Debug("   - Removing D&D Compendium links.");
             RemoveCompendiumLinks(assembly);
 
-            callback.AddOverride(assembly, true);
+            AddOverride(callback, assembly, true);
         }
 
         private static void RedirectPath(AssemblyDef assembly, string redirectPath)
@@ -292,7 +294,7 @@ namespace CharacterBuilderLoader
             Log.Debug("   - Injecting combined rules location into GetDecryptedStream");
             RedirectPath(assembly, redirectPath);
 
-            callback.AddOverride(assembly, false);
+            AddOverride(callback, assembly, false);
         }
         
         public static void StartProcess(string rootDirectory, string[] args, string redirectPath)
@@ -302,33 +304,36 @@ namespace CharacterBuilderLoader
             stopwatch.Start();
 
             redirectPath = Path.GetFullPath(redirectPath);
-            var callback = new TargetDomainCallback(rootDirectory);
+
+            Log.Debug(" - Creating application domain.");
+            var setup = new AppDomainSetup();
+            setup.ApplicationBase = AppDomain.CurrentDomain.BaseDirectory;
+            setup.ApplicationName = "D&D 4E Character Builder";
+            setup.DisallowCodeDownload = true;
+            setup.DisallowPublisherPolicy = true;
+            // For some reason, unless we set PrivateBinPathProbe, D20RulesEngine.dll bypasses ResolveAssembly
+            setup.PrivateBinPath = setup.ApplicationBase;
+            setup.PrivateBinPathProbe = "true";
+            var appDomain = AppDomain.CreateDomain("D&D 4E Character Builder", null, setup, FULL_TRUST);
+
+            Log.Debug(" - Creating remote callback.");
+            var callbackObj = appDomain.CreateInstance("CBLoader", typeof(TargetDomainCallback).FullName);
+            var callback = (TargetDomainCallback) callbackObj.Unwrap();
+
+            // Seal the AppDomain by setting the private path to an invalid path.
+            // For some reason, we must *also* do this to stop D20RulesEngine.dll from bypassing.
+#pragma warning disable CS0618
+            appDomain.ClearPrivatePath();
+            appDomain.AppendPrivatePath("<|>");
+#pragma warning restore CS0618
+
+            callback.Init(rootDirectory, Log.RemoteReceiver);
 
             Log.Debug(" - Patching CharacterBuilder.exe");
             PatchApplication(callback, rootDirectory);
 
             Log.Debug(" - Patching ApplicationUpdate.Client.dll");
             PatchApplicationUpdate(callback, rootDirectory, redirectPath);
-
-            Log.Debug(" - Creating application domain.");
-            var setup = new AppDomainSetup();
-            setup.ApplicationBase = rootDirectory;
-            setup.DisallowCodeDownload = true;
-            setup.DisallowPublisherPolicy = true;
-            setup.PrivateBinPathProbe = "true";
-            var appDomain = AppDomain.CreateDomain("D&D 4E Character Builder", null, setup, FULL_TRUST);
-
-#pragma warning disable CS0618
-            // Though these methods are obsolete, they are the only option I've found for doing this.
-            // This ensures CBLoader.exe is on the resolution path so the resolver can be loaded.
-            appDomain.AppendPrivatePath(AppDomain.CurrentDomain.BaseDirectory);
-            appDomain.DoCallBack(() => { }); // Ensure CBLoader.exe is loaded in the target domain.
-            appDomain.ClearPrivatePath();
-            appDomain.AppendPrivatePath("<|>"); // An invalid path. Seems required to make it not search the current directory.
-#pragma warning restore CS0618
-
-            foreach (var assembly in appDomain.GetAssemblies())
-                Log.Debug("   - Preloaded module: " + assembly);
 
             Log.Debug(" - Setting up environment.");
             Environment.CurrentDirectory = rootDirectory;
@@ -338,8 +343,6 @@ namespace CharacterBuilderLoader
             Log.Debug("");
 
             Log.Info("Launching CharacterBuilder.exe");
-            appDomain.DoCallBack(callback.InitLogging);
-            appDomain.AssemblyResolve += callback.ResolveAssembly;
             if (!Log.VerboseMode) ConsoleWindow.SetConsoleShown(false);
             appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args);
         }

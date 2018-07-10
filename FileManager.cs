@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 using System.Xml;
 using System.Security.Cryptography;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
     /// <summary>
     /// Manages interactions with the files on the disc
@@ -133,10 +133,10 @@ namespace CharacterBuilderLoader
         /// If this is false, the encrypted file will only be extracted if it is updated and the .main and .part files will only
         /// be merged if one has been touched. If forced is true, the files will be re-extracted and remerged regardless</param>
         /// </summary>
-        public void ExtractAndMerge(bool forced, CryptoInfo ci)
+        public void ExtractAndMerge(bool forced, string rootDirectory, CryptoInfo ci)
         {
             Log.Debug("Checking for merge and extract.");
-            ExtractFile(forced, ci);
+            ExtractFile(forced, rootDirectory, ci);
             MergeFiles(forced, ci);
         }
 
@@ -719,14 +719,15 @@ namespace CharacterBuilderLoader
         /// <param name="forced">If true, the .encrypted file will always be extracted. Otherwise it is only extracted
         /// if it is updated.</param>
         /// </summary>
-        private void ExtractFile(bool forced, CryptoInfo ci)
+        private void ExtractFile(bool forced, string rootDirectory, CryptoInfo ci)
         {
-            if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(ENCRYPTED_FILENAME) > File.GetLastWriteTime(CoreFileName))
+            var rulesFile = Path.Combine(rootDirectory, ENCRYPTED_FILENAME);
+            if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(rulesFile) > File.GetLastWriteTime(CoreFileName))
             {
                 Log.Info("Extracting " + CoreFileName);
                 try
                 {
-                    using (StreamReader sr = new StreamReader(ci.OpenEncryptedFile(ENCRYPTED_FILENAME)))
+                    using (StreamReader sr = new StreamReader(ci.OpenEncryptedFile(rulesFile)))
                     using (StreamWriter sw = new StreamWriter(CoreFileName))
                     {
                         string xmlData = sr.ReadToEnd();

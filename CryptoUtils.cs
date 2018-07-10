@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
     /// <summary>
     /// A class that handles calculating the hashes the character builder uses
@@ -211,7 +211,7 @@ namespace CharacterBuilderLoader
         }
 
         public Stream OpenEncryptedFile(string filename) =>
-            CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open), CryptoUtils.CB_APP_ID, KeyForGuid);
+            CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open, FileAccess.Read), CryptoUtils.CB_APP_ID, KeyForGuid);
     }
 
     public sealed class CryptoUtils

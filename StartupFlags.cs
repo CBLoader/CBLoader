@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 
-namespace CharacterBuilderLoader
+namespace CBLoader
 {
     [Serializable]
     [XmlRoot("Settings", IsNullable = false)]
@@ -59,7 +59,6 @@ namespace CharacterBuilderLoader
             UpdateFirst = false;
             CheckForUpdates = true;
         }
-
 
         /// <summary>
         /// Parses the command line arguments and sets the necessary state flags across the applicaiton.
