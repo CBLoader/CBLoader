@@ -29,9 +29,19 @@ namespace CBLoader
             patchedAssemblies[name] = data;
         }
 
+        private Assembly CheckExtension(string name, string extension)
+        {
+            var path = Path.Combine(rootDirectory, $"{name}.{extension}");
+            if (File.Exists(path))
+            {
+                Log.Debug($" - Found assembly at {path}");
+                return Assembly.LoadFrom(path);
+            }
+            return null;
+        }
         private Assembly ResolveAssembly(Object sender, ResolveEventArgs ev)
         {
-            Log.Debug("Handling ResolveAssembly event for " + ev.Name);
+            Log.Debug($"Handling ResolveAssembly event for {ev.Name}");
             
             if (ev.Name == myAssembly.FullName)
             {
@@ -47,19 +57,11 @@ namespace CBLoader
                 return Assembly.Load(patchedAssemblies[name]);
             }
 
-            var dllPath = Path.Combine(rootDirectory, name + ".dll");
-            if (File.Exists(dllPath))
-            {
-                Log.Debug(" - Found assembly at " + dllPath);
-                return Assembly.LoadFrom(dllPath);
-            }
+            var dll = CheckExtension(name, "dll");
+            if (dll != null) return dll;
 
-            var exePath = Path.Combine(rootDirectory, name + ".exe");
-            if (File.Exists(exePath))
-            {
-                Log.Debug(" - Found assembly at " + exePath);
-                return Assembly.LoadFrom(exePath);
-            }
+            var exe = CheckExtension(name, "exe");
+            if (exe != null) return exe;
 
             return null;
         }
@@ -74,13 +76,13 @@ namespace CBLoader
             var path = Path.Combine(rootDirectory, name);
             var expectedName = Path.GetFileNameWithoutExtension(name);
             var assembly = AssemblyDef.Load(path);
-            Trace.Assert(assembly.Name == expectedName, name + " does not contain the correct assembly!");
+            Trace.Assert(assembly.Name == expectedName, $"{name} does not contain the correct assembly!");
             return assembly;
         }
 
         private static void AddOverride(TargetDomainCallback callback, AssemblyDef assembly, bool expectObfusication)
         {
-            Log.Debug(" - Adding patched assembly for " + assembly.Name);
+            Log.Debug($" - Adding patched assembly for {assembly.Name}");
 
             var settings = new ModuleWriterOptions(assembly.ManifestModule);
             if (expectObfusication)
@@ -190,13 +192,12 @@ namespace CBLoader
 
             // Add a new exception handler.
             var tempField = new Local(imp.ImportAsTypeSig(typeof(Exception)));
-            var logError = imp.Import(typeof(Log).GetMethod("Error", new Type[] { typeof(string), typeof(Exception) }));
             method.Body.Variables.Add(tempField);
             method.Body.Instructions.InsertRange(handlerStart, new Instruction[] {
                 OpCodes.Stloc.ToInstruction(tempField),
                 OpCodes.Ldstr.ToInstruction("Character Builder encountered unexpected error."),
                 OpCodes.Ldloc.ToInstruction(tempField),
-                OpCodes.Call.ToInstruction(logError),
+                OpCodes.Call.ToInstruction(imp.Import(typeof(Log).GetMethod("Error"))),
                 OpCodes.Ret.ToInstruction(),
             });
             exception.TryEnd = method.Body.Instructions[handlerStart];
@@ -282,7 +283,8 @@ namespace CBLoader
                 OpCodes.Ldstr.ToInstruction(redirectPath),
                 OpCodes.Starg.ToInstruction(method.Parameters[1]),
                 OpCodes.Ldstr.ToInstruction("Overriding combined.dnd40.encrypted location."),
-                OpCodes.Call.ToInstruction(imp.Import(typeof(Log).GetMethod("Debug", new Type[] { typeof(String) }))),
+                OpCodes.Ldnull.ToInstruction(),
+                OpCodes.Call.ToInstruction(imp.Import(typeof(Log).GetMethod("Debug"))),
             });
             method.Body.OptimizeMacros();
         }
@@ -339,8 +341,8 @@ namespace CBLoader
             Environment.CurrentDirectory = rootDirectory;
 
             stopwatch.Stop();
-            Log.Debug("Finished in " + stopwatch.ElapsedMilliseconds + " ms");
-            Log.Debug("");
+            Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
+            Log.Debug();
 
             Log.Info("Launching CharacterBuilder.exe");
             if (!Log.VerboseMode) ConsoleWindow.SetConsoleShown(false);

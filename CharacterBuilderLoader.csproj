@@ -95,6 +95,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="RulesMerger.cs" />
     <Compile Include="StartupFlags.cs" />
     <Compile Include="CryptoUtils.cs" />
     <Compile Include="UpdateLog.cs" />

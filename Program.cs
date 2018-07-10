@@ -27,7 +27,7 @@ namespace CBLoader
                 if (!sf.ParseCmdArgs(args, fm))
                     return;
                 Log.Info(String.Format("CBLoader version {0}", Version));
-                Log.Info("");
+                Log.Info();
 
                 string basePath = Utils.GetInstallPath();
                 CheckDirectory(basePath);
@@ -36,9 +36,9 @@ namespace CBLoader
                 if (File.Exists(Path.Combine(FileManager.BasePath, "CharacterBuilder.exe")))
                     throw new Exception("CBLoader should be installed in its own folder, and not copied into the Character Builder folder.");
 
-                Log.Debug("Working directory is: " + Environment.CurrentDirectory);
-                Log.Debug("CBLoader base directory is: " + FileManager.BasePath);
-                Log.Debug("Characer Builder directory is: " + basePath);
+                Log.Debug($"Working directory is: {Environment.CurrentDirectory}");
+                Log.Debug($"CBLoader base directory is: {FileManager.BasePath}");
+                Log.Debug($"Characer Builder directory is: {basePath}");
 
                 CryptoInfo ci = new CryptoInfo(basePath);
 

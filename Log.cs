@@ -21,7 +21,7 @@ namespace CBLoader
 
         public void WriteLogFile(string taggedMsg)
         {
-            outStream.WriteLine(DateTime.Now.ToString() + " - " + taggedMsg);
+            outStream.WriteLine($"[{DateTime.Now.ToString()}] {taggedMsg}");
             outStream.Flush();
         }
     }
@@ -46,55 +46,49 @@ namespace CBLoader
             RemoteReceiver = remoteReceiver;
             LogPrefix = "*";
         }
-
-        public static void Trace(string msg)
+        
+        private static string ExceptionMessage(Exception e, string message, bool verbose)
         {
-            RemoteReceiver.WriteLogFile(LogPrefix + "Trace: " + msg);
-        }
+            message = message ?? "";
+            if (e == null) return message;
 
-        public static void Debug(string msg)
-        {
-            if (VerboseMode) Console.WriteLine(msg);
-            RemoteReceiver.WriteLogFile(LogPrefix + "Debug: " + msg);
-        }
+            var sb = new StringBuilder();
+            sb.Append(message);
 
-        public static void Info(string msg)
-        {
-            Console.WriteLine(msg);
-            RemoteReceiver.WriteLogFile(LogPrefix + "Info : " + msg);
-        }
-
-        public static void Error(string msg)
-        {
-            RemoteReceiver.ErrorLogged = true;
-            Console.WriteLine("ERROR: " + msg);
-            RemoteReceiver.WriteLogFile(LogPrefix + "ERROR: " + msg);
-        }
-
-        private static string ExceptionMessage(Exception e, bool verbose)
-        {
-            StringBuilder sb = new StringBuilder();
-            Exception current = e;
+            var current = e;
+            var hasLastLine = message != "";
             while (current != null)
             {
-                if (current != e)
-                    sb.Append("Caused by: ");
-                var header = !verbose || current.GetType() == typeof(Exception) ? "" : current.GetType().FullName + ": ";
-                sb.AppendLine(header + current.Message);
-                if (verbose) sb.AppendLine(current.StackTrace);
+                if (hasLastLine) sb.Append("\nCaused by: ");
+
+                var excString = current.ToString().Trim();
+                if ((!verbose || current.GetType() == typeof(Exception)) && current.Message != "")
+                    excString = excString.Split(new char[] { ':' }, 2)[1].Trim();
+                sb.Append(excString);
 
                 current = current.InnerException;
-                if (verbose && current != null)
-                    sb.AppendLine();
             }
             return sb.ToString();
         }
+        private static void BaseLog(string tag, bool alwaysTag, bool printConsole, string message, Exception e)
+        {
+            if (printConsole)
+                Console.WriteLine(ExceptionMessage(e, $"{(alwaysTag ? $"{tag}: " : "")}{message}", VerboseMode));
+            RemoteReceiver.WriteLogFile(ExceptionMessage(e, $"{LogPrefix}{tag.PadRight(5)}: {message}", true));
+        }
 
-        public static void Error(string msg, Exception e)
+        public static void Trace(string msg = null, Exception e = null) =>
+            BaseLog("Trace", false, false, msg, e);
+        public static void Debug(string msg = null, Exception e = null) =>
+            BaseLog("Debug", false, VerboseMode, msg, e);
+        public static void Info(string msg = null, Exception e = null) =>
+            BaseLog("Info", false, true, msg, e);
+        public static void Warn(string msg = null, Exception e = null) =>
+            BaseLog("Warn", true, true, msg, e);
+        public static void Error(string msg = null, Exception e = null)
         {
             RemoteReceiver.ErrorLogged = true;
-            Console.WriteLine("ERROR: " + msg + "\n" + ExceptionMessage(e, VerboseMode));
-            RemoteReceiver.WriteLogFile(LogPrefix + "ERROR: " + msg + "\n" + ExceptionMessage(e, true));
+            BaseLog("Error", true, true, msg, e);
         }
     }
 }

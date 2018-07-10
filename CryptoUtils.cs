@@ -125,7 +125,7 @@ namespace CBLoader
             if (hashes[0] != hashes[2]) throw new Exception("hashes[0] != hashes[2] in LoadRulesFile.");
 
             // Output hash information.
-            Log.Trace("   - demoHash = " + hashes[0] + ", normalHash = " + hashes[1]);
+            Log.Trace($"   - demoHash = {hashes[0]}, normalHash = {hashes[1]}");
             this.expectedDemoHash = hashes[0];
             this.expectedNormalHash = hashes[1];
         }
@@ -138,13 +138,13 @@ namespace CBLoader
 
         public ParsedKeyFile(Guid applicationId, string keyFile)
         {
-            Log.Debug(" - Parsing " + Path.GetFileName(keyFile));
+            Log.Debug($" - Parsing {Path.GetFileName(keyFile)}");
             var document = XDocument.Load(keyFile);
 
             var applicationTag = document.Root.Elements()
                 .First(x => x.Attribute("ID").Value == applicationId.ToString());
             var currentUpdateGuid = new Guid(applicationTag.Attribute("CurrentUpdate").Value);
-            var updateTag = applicationTag.Element("Update" + currentUpdateGuid);
+            var updateTag = applicationTag.Element($"Update{currentUpdateGuid}");
             var updateKey = Convert.FromBase64String(updateTag.Value.ToString());
 
             this.currentUpdateGuid = currentUpdateGuid;
@@ -179,8 +179,8 @@ namespace CBLoader
             this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
 
             stopwatch.Stop();
-            Log.Debug("Finished in " + stopwatch.ElapsedMilliseconds + " ms");
-            Log.Debug("");
+            Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
+            Log.Debug();
         }
 
         private string FixXmlHash(string str) =>
@@ -239,9 +239,11 @@ namespace CBLoader
                 Log.Debug("Stripping UTF-8 BOM.");
                 str = str.Substring(1, str.Length - 1);
             }
-            str = str.Replace("\r\n", "\n").Replace('\r', '\n');
+            
+            // Normalize line endings to \r\n
+            str = str.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n");
 
-            str += "\n" + XML_MARKER + "\n<!-- Fix hash: ";
+            str += $"\n{XML_MARKER}\n<!-- Fix hash: ";
             var hasher = new CBDataHasher();
             hasher.Update(str);
             str += hasher.CalculatePreimage(target_hash, " -->\n");
