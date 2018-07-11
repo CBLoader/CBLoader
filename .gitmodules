@@ -1,3 +1,6 @@
 [submodule "dnlib"]
 	path = dnlib
 	url = https://github.com/0xd4d/dnlib.git
+[submodule "Mono.Options"]
+	path = Mono.Options
+	url = https://github.com/Lymia/Mono.Options_Net3.5.git

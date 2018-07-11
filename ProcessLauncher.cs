@@ -13,14 +13,14 @@ namespace CBLoader
 {
     internal sealed class TargetDomainCallback : MarshalByRefObject
     {
-        private string rootDirectory;
+        private string cbDirectory;
         private Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
 
         private readonly Assembly myAssembly = Assembly.GetAssembly(typeof(TargetDomainCallback));
 
-        internal void Init(string rootDirectory, LogRemoteReceiver logRemote)
+        internal void Init(string cbDirectory, LogRemoteReceiver logRemote)
         {
-            this.rootDirectory = rootDirectory;
+            this.cbDirectory = cbDirectory;
             Log.InitLoggingForChildDomain(logRemote);
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
         }
@@ -31,7 +31,7 @@ namespace CBLoader
 
         private Assembly CheckExtension(string name, string extension)
         {
-            var path = Path.Combine(rootDirectory, $"{name}.{extension}");
+            var path = Path.Combine(cbDirectory, $"{name}.{extension}");
             if (File.Exists(path))
             {
                 Log.Debug($" - Found assembly at {path}");
@@ -71,9 +71,9 @@ namespace CBLoader
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
 
-        private static AssemblyDef LoadAssembly(string rootDirectory, string name)
+        private static AssemblyDef LoadAssembly(string cbDirectory, string name)
         {
-            var path = Path.Combine(rootDirectory, name);
+            var path = Path.Combine(cbDirectory, name);
             var expectedName = Path.GetFileNameWithoutExtension(name);
             var assembly = AssemblyDef.Load(path);
             Trace.Assert(assembly.Name == expectedName, $"{name} does not contain the correct assembly!");
@@ -242,9 +242,9 @@ namespace CBLoader
             }
         }
 
-        private static void PatchApplication(TargetDomainCallback callback, string rootDirectory)
+        private static void PatchApplication(TargetDomainCallback callback, string cbDirectory)
         {
-            var assembly = LoadAssembly(rootDirectory, "CharacterBuilder.exe");
+            var assembly = LoadAssembly(cbDirectory, "CharacterBuilder.exe");
 
             Log.Debug("   - Finding SmartAssembly exception handler methods.");
             var handlers = FindExceptionHandlers(assembly);
@@ -289,9 +289,9 @@ namespace CBLoader
             method.Body.OptimizeMacros();
         }
 
-        private static void PatchApplicationUpdate(TargetDomainCallback callback, string rootDirectory, string redirectPath)
+        private static void PatchApplicationUpdate(TargetDomainCallback callback, string cbDirectory, string redirectPath)
         {
-            var assembly = LoadAssembly(rootDirectory, "ApplicationUpdate.Client.dll");
+            var assembly = LoadAssembly(cbDirectory, "ApplicationUpdate.Client.dll");
 
             Log.Debug("   - Injecting combined rules location into GetDecryptedStream");
             RedirectPath(assembly, redirectPath);
@@ -299,7 +299,7 @@ namespace CBLoader
             AddOverride(callback, assembly, false);
         }
         
-        public static void StartProcess(string rootDirectory, string[] args, string redirectPath)
+        public static void StartProcess(string cbDirectory, string[] args, string redirectPath)
         {
             Log.Info("Preparing to start CharacterBuilder.exe");
             var stopwatch = new Stopwatch();
@@ -329,16 +329,16 @@ namespace CBLoader
             appDomain.AppendPrivatePath("<|>");
 #pragma warning restore CS0618
 
-            callback.Init(rootDirectory, Log.RemoteReceiver);
+            callback.Init(cbDirectory, Log.RemoteReceiver);
 
             Log.Debug(" - Patching CharacterBuilder.exe");
-            PatchApplication(callback, rootDirectory);
+            PatchApplication(callback, cbDirectory);
 
             Log.Debug(" - Patching ApplicationUpdate.Client.dll");
-            PatchApplicationUpdate(callback, rootDirectory, redirectPath);
+            PatchApplicationUpdate(callback, cbDirectory, redirectPath);
 
             Log.Debug(" - Setting up environment.");
-            Environment.CurrentDirectory = rootDirectory;
+            Environment.CurrentDirectory = cbDirectory;
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");

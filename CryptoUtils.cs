@@ -198,21 +198,21 @@ namespace CBLoader
 
         public readonly byte[] regPatcherKeyData;
 
-        public CryptoInfo(string baseDirectory)
+        public CryptoInfo(string cbDirectory)
         {
             Log.Info("Loading encryption keys.");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(baseDirectory, "D20RulesEngine.dll"));
-            var parsedKeyFile = new ParsedKeyFile(CB_APP_ID, Path.Combine(baseDirectory, "HeroicDemo.update"));
+            var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(cbDirectory, "D20RulesEngine.dll"));
+            var parsedKeyFile = new ParsedKeyFile(CB_APP_ID, Path.Combine(cbDirectory, "HeroicDemo.update"));
 
             this.expectedDemoHash = parsedD20Engine.expectedDemoHash;
             this.expectedNormalHash = parsedD20Engine.expectedNormalHash;
             this.demoUpdateGuid = parsedKeyFile.currentUpdateGuid;
             this.demoKeyData = parsedKeyFile.keyData;
 
-            var regPatcherPath = Path.Combine(baseDirectory, "RegPatcher.dat");
+            var regPatcherPath = Path.Combine(cbDirectory, "RegPatcher.dat");
             this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
 
             stopwatch.Stop();
