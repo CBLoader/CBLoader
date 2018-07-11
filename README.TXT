@@ -1,4 +1,5 @@
-﻿Provides a greater degree of houserule options than the standard D&D Character Builder application by allowing you to manually modify the rules XML file and load those changes into the D&D offline Character Builder.
+﻿Adds additional houserule capabilities to the D&D Insider Character Builder application by allowing
+you to manually modify the rules XML file.
 
 Please check for the latest version and for documentation at: http://github.com/cbloader/cbloader/
 

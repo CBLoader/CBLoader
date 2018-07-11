@@ -1,20 +1,22 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 
 namespace CBLoader
 {
     class Program
     {
-        public const string Version = "1.3.2b4";
+        public static string Version;
+        static Program()
+        {
+            var ver = typeof(Program).Assembly.GetName().Version;
+            Version = $"{ver.Major}.{ver.Minor}.{ver.Revision}";
+        }
         
         [STAThread]
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         static void Main(string[] args)
         {
-            if (args.Length == 1 && args[0] == "__init") return;
-
             Log.InitLogging();
 
             try
