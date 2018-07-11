@@ -3,18 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml;
-using System.Security.Cryptography;
 using System.Diagnostics;
 
 namespace CBLoader
 {
+    public class LastMergedFileInfo
+    {
+        public string FileName { get; set; }
+        public DateTime LastTouched { get; set; }
+    }
+
     /// <summary>
     /// Manages interactions with the files on the disc
     /// </summary>
-    public class FileManager
+    internal class FileManager
     {
         public const string ENCRYPTED_FILENAME = "combined.dnd40.encrypted";
         private const string GENERAL_EXTRACT_ERROR = 
@@ -233,7 +238,7 @@ namespace CBLoader
         /// </summary>
         private void MergeFiles(List<FileInfo> customFiles, CryptoInfo ci)
         {
-            var merger = new RulesMerger("D&D4E");
+            var merger = new PartMerger("D&D4E");
             Log.Info($" - Adding rules from core file");
             merger.ProcessDocument(CoreFileName);
             foreach (var file in customFiles)
@@ -307,7 +312,6 @@ namespace CBLoader
         /// <param name="parent"></param>
         private void SaveDocument(XmlWriter xw, XElement parent)
         {
-
             xw.WriteStartElement(parent.Name.LocalName);
             foreach (XAttribute xa in parent.Attributes())
                 xw.WriteAttributeString(xa.Name.LocalName, xa.Value);

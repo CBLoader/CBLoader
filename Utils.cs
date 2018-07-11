@@ -58,13 +58,14 @@ namespace CBLoader
         public static string GetInstallPath()
         {
             var reg = Registry.LocalMachine
-                .OpenSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\" + CB_INSTALL_ID);
+                .OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{CB_INSTALL_ID}");
             if (reg == null) return null;
             else return reg.GetValue("InstallLocation").ToString();
         }
 
         public static void ExtractKeyFile(string filename)
         {
+            /*
             RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")
                 .OpenSubKey(CryptoUtils.CB_APP_ID.ToString());
             string currentVersion = rk.GetValue(null).ToString();
@@ -86,6 +87,7 @@ namespace CBLoader
             applications.Add(application);
             xd.Add(applications);
             xd.Save(filename);
+            */
         }
 
         public static void CheckIfUserAssoc()

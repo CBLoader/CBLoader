@@ -12,12 +12,10 @@ using System.Xml.Linq;
 namespace CBLoader
 {
     /// <summary>
-    /// A class that handles calculating the hashes the character builder uses
-    /// to validate its files.
+    /// A class that handles calculating the hashes the character builder uses to validate its files.
     /// 
-    /// This supports calculating such checksums, and performing preimage attacks
-    /// to fix the hash of our generated files. (Since the hash is hardcoded into
-    /// D20RulesEngine.dll)
+    /// This supports calculating such checksums, and performing preimage attacks to fix the hash of our
+    /// generated files. (Since the hash is hardcoded into D20RulesEngine.dll)
     /// </summary>
     internal sealed class CBDataHasher
     {
@@ -25,11 +23,16 @@ namespace CBLoader
 
         public CBDataHasher()
         {
+            // Initial state of the hashes Character Builder actually uses.
             this.State = 5381;
         }
         public CBDataHasher(uint state)
         {
             this.State = state;
+        }
+        public CBDataHasher(string str) : this()
+        {
+            Update(str);
         }
 
         public void Update(char ch)
@@ -52,16 +55,45 @@ namespace CBLoader
             foreach (var ch in str.Reverse()) UpdateReverse(ch);
         }
         
-        public string CalculatePreimage(uint targetHash, string tail)
+        /// <summary>
+        /// Finds a string that when appended to another string with the current hash, will have a final
+        /// hash equal to targetHash.
+        /// 
+        /// Hence, to bring the hash of a string to any value, do:
+        /// 
+        /// str += new CBDataHasher(str).CalculatePreimage(targetHash, " whatever text ");
+        /// </summary>
+        /// <param name="targetHash">The target hash value.</param>
+        /// <param name="tail">An optional suffix that the output string must end with.</param>
+        /// <returns>The string to append.</returns>
+        public string CalculatePreimage(uint targetHash, string tail = "")
         {
+            // The effect of appending n characters to a string with this hash algorithm is effectively:
+            //
+            // hash(str + chars) = hash(str) * 33^n.Length + hash(chars) mod 2^32
+            //
+            // We calculate the hash value `chars` would need to have to set the hash to `targetHash`,
+            // assuming it is 5 characters.
+            //
+            // In this way, we can use an algorithm that only needs to bring 0 to a certain hash value,
+            // and not any value to any value.
             CBDataHasher target = new CBDataHasher(targetHash);
-            target.UpdateReverse(tail);
+            target.UpdateReverse(tail); // account for the tail
             target.State -= this.State * 39135393; // 33^5
 
+            // We calculate the string in reverse, effectively trying to bring the value of target down
+            // to zero. The calculation in reverse is:
+            //
+            // hash(c + str) = (hash(str) - c) * 33^1 mod 2^32
+            //
+            // As long as 33 evenly divides (hash(str) - c), the modular division will behave as ordinary
+            // division. As this value will always decrease, it eventually reaches zero, at which point
+            // we can just output null characters until we have 5 characters.
             var outStr = "";
             for (int i = 0; i < 5; i++)
             {
                 var tint = target.State;
+                // Avoid generating surrogate pairs or BOMs (The CLR does weird things to it)
                 var next = (tint >= 0xD800 && tint <= 0xDFFF) || tint == 0xFEFF ? 0x752D + (tint % 33) :
                            tint <= 0xFFFF ? tint : 0xFFC0 + (tint % 33);
                 var next_ch = (char)next;
@@ -74,6 +106,9 @@ namespace CBLoader
         }
     }
 
+    /// <summary>
+    /// A class that extracts the expected hash for combined.dnd40.encrypted from D20RulesEngine.dll
+    /// </summary>
     internal sealed class ParsedD20RulesEngine
     {
         public readonly uint expectedDemoHash, expectedNormalHash;
@@ -152,8 +187,10 @@ namespace CBLoader
         }
     }
 
-    public sealed class CryptoInfo
+    internal sealed class CryptoInfo
     {
+        private static Guid CB_APP_ID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
+
         public readonly uint expectedDemoHash, expectedNormalHash;
 
         public readonly Guid demoUpdateGuid;
@@ -168,7 +205,7 @@ namespace CBLoader
             stopwatch.Start();
 
             var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(baseDirectory, "D20RulesEngine.dll"));
-            var parsedKeyFile = new ParsedKeyFile(CryptoUtils.CB_APP_ID, Path.Combine(baseDirectory, "HeroicDemo.update"));
+            var parsedKeyFile = new ParsedKeyFile(CB_APP_ID, Path.Combine(baseDirectory, "HeroicDemo.update"));
 
             this.expectedDemoHash = parsedD20Engine.expectedDemoHash;
             this.expectedNormalHash = parsedD20Engine.expectedNormalHash;
@@ -187,7 +224,7 @@ namespace CBLoader
             CryptoUtils.FixXmlHash(str, this.expectedDemoHash);
         
         private Stream GetXmlEncryptingStream(Stream s) =>
-            CryptoUtils.GetEncryptingStream(s, CryptoUtils.CB_APP_ID, this.demoUpdateGuid, this.demoKeyData);
+            CryptoUtils.GetEncryptingStream(s, CB_APP_ID, this.demoUpdateGuid, this.demoKeyData);
         
         public void SaveRulesFile(XDocument document, string filename)
         {
@@ -209,26 +246,17 @@ namespace CBLoader
         }
 
         public Stream OpenEncryptedFile(string filename) =>
-            CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open, FileAccess.Read), CryptoUtils.CB_APP_ID, KeyForGuid);
+            CryptoUtils.GetDecryptingStream(File.Open(filename, FileMode.Open, FileAccess.Read), CB_APP_ID, KeyForGuid);
     }
 
-    public sealed class CryptoUtils
-    {
-        public static Guid CB_APP_ID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
-        public static Guid HEROIC_DEMO_UPDATE_ID = new Guid("19806aaa-6d71-425d-9dcf-54e6bb6b1e57");
-        
+    internal static class CryptoUtils
+    {   
         private const string XML_MARKER = "<!-- This file has been edited by CBLoader -->";
 
-        public static bool IsXmlPatched(string str)
-        {
-            return str.Contains(XML_MARKER);
-        }
-        public static uint HashString(string str)
-        {
-            var hasher = new CBDataHasher();
-            hasher.Update(str);
-            return hasher.State;
-        }
+        public static bool IsXmlPatched(string str) =>
+            str.Contains(XML_MARKER);
+        public static uint HashString(string str) => 
+            new CBDataHasher(str).State;
         public static string FixXmlHash(string str, uint target_hash)
         {
             if (str[0] == '\uFEFF')
@@ -242,9 +270,7 @@ namespace CBLoader
             str = str.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n");
 
             str += $"\n{XML_MARKER}\n<!-- Fix hash: ";
-            var hasher = new CBDataHasher();
-            hasher.Update(str);
-            str += hasher.CalculatePreimage(target_hash, " -->\n");
+            str += new CBDataHasher(str).CalculatePreimage(target_hash, " -->\n");
             Trace.Assert(HashString(str) == target_hash, "FixXmlHash failed!");
             return str;
         }

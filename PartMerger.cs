@@ -7,6 +7,9 @@ using System.Xml.Linq;
 
 namespace CBLoader
 {
+    /// <summary>
+    /// A data structure containing the data in a single RulesElement tag.
+    /// </summary>
     internal class RulesElement
     {
         private const string ROOT_TEXT_TAG = "$$CBLoader_Root_Text";
@@ -19,8 +22,8 @@ namespace CBLoader
         private Dictionary<string, string> specific = new Dictionary<string, string>();
         private List<XNode> rules = new List<XNode>();
 
-        internal string InternalId { get => attributes[RulesMerger.INTERNAL_ID];
-                                     set => attributes[RulesMerger.INTERNAL_ID] = value; }
+        internal string InternalId { get => attributes[PartMerger.INTERNAL_ID];
+                                     set => attributes[PartMerger.INTERNAL_ID] = value; }
 
         internal RulesElement(string id)
         {
@@ -239,7 +242,7 @@ namespace CBLoader
         internal void RemoveNodes(XElement element)
         {
             foreach (var attribute in element.Attributes())
-                if (attribute.Name.LocalName != RulesMerger.INTERNAL_ID)
+                if (attribute.Name.LocalName != PartMerger.INTERNAL_ID)
                 {
                     Log.Warn($"    - Attributes found in an RemoveNodes tag for '{InternalId}'. " +
                              $"To remove an attribute from a rule, add an <Attribute name=\"{attribute.Name.LocalName}\"> tag instead.");
@@ -250,7 +253,10 @@ namespace CBLoader
         }
     }
 
-    internal class RulesMerger
+    /// <summary>
+    /// A data structure representing a complete D20Rules set.
+    /// </summary>
+    internal class PartMerger
     {
         internal const string INTERNAL_ID = "internal-id";
         internal const string GAME_SYSTEM = "game-system";
@@ -259,7 +265,7 @@ namespace CBLoader
         private Dictionary<string, RulesElement> rules = new Dictionary<string, RulesElement>();
         private List<XElement> rawElements = new List<XElement>();
 
-        public RulesMerger(string gameSystem)
+        public PartMerger(string gameSystem)
         {
             this.gameSystem = gameSystem;
         }

@@ -85,7 +85,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FileManager.cs" />
-    <Compile Include="LastMergedFileInfo.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="ProcessLauncher.cs" />
     <Compile Include="Program.cs" />
@@ -95,7 +94,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="RulesMerger.cs" />
+    <Compile Include="PartMerger.cs" />
     <Compile Include="StartupFlags.cs" />
     <Compile Include="CryptoUtils.cs" />
     <Compile Include="UpdateLog.cs" />

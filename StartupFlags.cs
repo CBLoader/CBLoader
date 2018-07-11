@@ -5,7 +5,6 @@ using System.Xml.Serialization;
 
 namespace CBLoader
 {
-    [Serializable]
     [XmlRoot("Settings", IsNullable = false)]
     public sealed class SettingsFileSchema
     {
@@ -35,7 +34,7 @@ namespace CBLoader
         [XmlIgnore] public bool ShowChangelogSpecified { get; set; }
     }
 
-    public sealed class StartupFlags
+    internal sealed class StartupFlags
     {
         public const string CONFIG_FILENAME = "default.cbconfig";
 
