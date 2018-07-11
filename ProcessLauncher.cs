@@ -204,7 +204,7 @@ namespace CBLoader
             exception.HandlerStart = method.Body.Instructions[handlerStart];
         }
 
-        private static string FIND_RULES_ELEMENT = 
+        private const string FIND_RULES_ELEMENT = 
             "D20RulesEngine.RulesElement* D20RulesEngine.D20Workspace::FindRulesElement(System.String,D20RulesEngine.D20Type*)";
         private static void RemoveCompendiumLinks(AssemblyDef assembly)
         {

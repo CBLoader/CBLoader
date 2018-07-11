@@ -203,9 +203,7 @@ namespace CBLoader
             if (updateId == demoUpdateGuid) return demoKeyData;
 
             if (regPatcherKeyData == null)
-            {
                 Log.Error("Could not retrieve key data from RegPatcher.dat.\nPlease update the Character Builder to the April 2009 patch or later.");
-            }
 
             return regPatcherKeyData;
         }
@@ -219,7 +217,7 @@ namespace CBLoader
         public static Guid CB_APP_ID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
         public static Guid HEROIC_DEMO_UPDATE_ID = new Guid("19806aaa-6d71-425d-9dcf-54e6bb6b1e57");
         
-        private static string XML_MARKER = "<!-- This file has been edited by CBLoader -->";
+        private const string XML_MARKER = "<!-- This file has been edited by CBLoader -->";
 
         public static bool IsXmlPatched(string str)
         {

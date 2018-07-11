@@ -7,7 +7,7 @@ namespace CBLoader
 {
     class Program
     {
-        public static string Version = "1.3.2b4";
+        public const string Version = "1.3.2b4";
         
         [STAThread]
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
@@ -42,22 +42,13 @@ namespace CBLoader
 
                 CryptoInfo ci = new CryptoInfo(basePath);
 
-                if (sf.CheckForUpdates && sf.UpdateFirst)
-                    fm.DoUpdates(sf.ForcedReload);
-                if (!sf.Mergelater)
-                    fm.ExtractAndMerge(sf.ForcedReload, basePath, ci);
+                //if (sf.CheckForUpdates)
+                //    fm.DoUpdates(sf.ForcedReload);
+                fm.ExtractAndMerge(sf.ForcedReload, basePath, ci);
                 if (sf.LoadExec)
                     ProcessLauncher.StartProcess(basePath, sf.Args.ToArray(), FileManager.MergedPath);
-                if (sf.Mergelater)
-                    fm.ExtractAndMerge(sf.ForcedReload, basePath, ci);
 
                 Utils.CheckIfUserAssoc();
-                // And here's the better alternated to DCUpdater.
-                if (sf.CheckForUpdates && fm.DoUpdates(sf.ForcedReload))
-                {
-                    Log.Info("Character Builder has already been launched.\n  The following merges are not a bug, and not slowing down the loading of CB.");
-                    fm.ExtractAndMerge(sf.ForcedReload, basePath, ci);
-                }
             }
             catch (Exception e)
             {

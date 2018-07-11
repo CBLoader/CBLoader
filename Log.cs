@@ -84,7 +84,7 @@ namespace CBLoader
         public static void Info(string msg = null, Exception e = null) =>
             BaseLog("Info", false, true, msg, e);
         public static void Warn(string msg = null, Exception e = null) =>
-            BaseLog("Warn", true, true, msg, e);
+            BaseLog("Warn", false, true, msg, e);
         public static void Error(string msg = null, Exception e = null)
         {
             RemoteReceiver.ErrorLogged = true;

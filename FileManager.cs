@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using System.Xml.Serialization;
 using System.Xml;
 using System.Security.Cryptography;
+using System.Diagnostics;
 
 namespace CBLoader
 {
@@ -62,9 +63,7 @@ namespace CBLoader
         {
             get { return BasePath + "combined.dnd40.main"; }
         }
-
-        public bool UseNewMergeLogic { get; set; }
-
+        
         public FileManager()
         {
             KeyFile = BasePath +  "cbloader.keyfile";
@@ -80,9 +79,8 @@ namespace CBLoader
             }
             else
                 currentlyMerged = new List<LastMergedFileInfo>();
-             customFolders = new List<string>();
-             ignoredParts = new List<string>();
-             UseNewMergeLogic = true;
+            customFolders = new List<string>();
+            ignoredParts = new List<string>();
             string ddi = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi");
             if (Directory.Exists(ddi))
             {
@@ -135,9 +133,16 @@ namespace CBLoader
         /// </summary>
         public void ExtractAndMerge(bool forced, string rootDirectory, CryptoInfo ci)
         {
-            Log.Debug("Checking for merge and extract.");
+            Log.Info("Updating merged game data.");
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             ExtractFile(forced, rootDirectory, ci);
             MergeFiles(forced, ci);
+
+            stopwatch.Stop();
+            Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
+            Log.Debug();
         }
 
         /// <summary>
@@ -228,165 +233,16 @@ namespace CBLoader
         /// </summary>
         private void MergeFiles(List<FileInfo> customFiles, CryptoInfo ci)
         {
-
-            var files = customFiles.GroupBy(FileWasMerged).OrderBy(a => a.Key).Reverse();
-            
-            if (UseNewMergeLogic) // New merge logic is equally as fast when doing the entire thing, so let's just do that.
-                files = customFiles.GroupBy(fi => false).OrderBy(a => a.Key).Reverse();
-               
-            string fileName = GetIntermediaryFilename(files);
-            XDocument main = GetBaseDocument(fileName);
-
-            Dictionary<string, XElement> idDictionary = new Dictionary<string, XElement>();
-
-            // Save the unchanged files in a temp document for next time.
-            if (!File.Exists(fileName)) {
-                foreach (FileInfo fi in files.First())
-                    MergeFile(main, fi, idDictionary);
-                DeQueueMerges(main, idDictionary);
-                SaveDocument(main, fileName);
-            }
-
-            // Merge in the modified files
-            if(files.Count() > 1)
-                foreach (FileInfo fi in files.Skip(1).First())
-                    MergeFile(main, fi,idDictionary);
-            if (UseNewMergeLogic && idDictionary.Keys.FirstOrDefault() != null) // There is no first element, therefore there's nothing in there.  Skip the enumeration.
-                DeQueueMerges(main, idDictionary);
-            ci.SaveRulesFile(main, MergedPath);
-
-            using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
+            var merger = new RulesMerger("D&D4E");
+            Log.Info($" - Adding rules from core file");
+            merger.ProcessDocument(CoreFileName);
+            foreach (var file in customFiles)
             {
-                mergedSerializer.Serialize(sw, currentlyMerged);
+                Log.Info($" - Adding rules from {file}");
+                merger.ProcessDocument(file.FullName);
             }
-        }
-
-        /// <summary>
-        /// Merges the specified file into the main document
-        /// </summary>
-        private void MergeFile(XDocument main, FileInfo fi, Dictionary<string, XElement> idDictionary)
-        {
-            try
-            {
-                if (UseNewMergeLogic)
-                    Log.Info("Loading " + fi.Name + "...");
-                else
-                    Log.Info("Merging " + fi.Name + "...");
-                XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
-                if (UseNewMergeLogic)
-                {
-                    QueuePart(customContent, idDictionary);
-                }
-                else
-                    MergePart(customContent, main);
-                updateMergedList(fi.FullName, fi.LastWriteTime);
-            }
-            catch (Exception e)
-            {
-                updateMergedList(fi.FullName, DateTime.MinValue);
-                if ((e.Message.Contains("The following elements are not closed") && e.Message.ToLowerInvariant().Contains("D20Rules".ToLowerInvariant())) || e.Message.Contains("There is an unclosed literal string"))
-                {
-                    if (File.Exists(fi.FullName + ".borked"))
-                    {
-                        File.Delete(fi.FullName + ".borked");
-                    }
-                    Log.Error(fi.Name + " did not download correctly. ", e);
-                    fi.MoveTo(fi.FullName + ".borked");
-                }
-                else
-                {
-                    Log.Error("ERROR LOADING FILE: ", e);
-                }
-
-            }
-        }
-
-        private void QueuePart(XDocument part, Dictionary<string, XElement> idDictionary)
-        {
-            foreach (XElement partElement in part.Root.Elements())
-            {
-                string id = getID(partElement);
-                if (id != null)
-                {
-                    if (idDictionary.ContainsKey(id))
-                        idDictionary[id].Add(partElement);
-                    else
-                        idDictionary.Add(id, new XElement("MergeContainer", partElement));
-                }
-                else if (partElement.Name == "MassAppend")
-                    if (idDictionary.ContainsKey("nullID"))
-                        idDictionary["nullID"].Add(partElement);
-                    else
-                        idDictionary.Add("nullID", new XElement("MergeContainer", partElement));
-            }
-        }
-
-        private void DeQueueMerges(XDocument main, Dictionary<string, XElement> idDictionary)
-        {
-            if (idDictionary.Keys.FirstOrDefault() == null)
-                return; // We're not needed here.
-            Log.Info("Applying base elements.");
-            XElement mainElement = main.Root.Elements("RulesElement").First();
-            XNode NextElement;
-            do
-            {
-                XNode prev = mainElement.PreviousNode;
-                NextElement = mainElement.NextNode;
-                while (NextElement != null && !(NextElement is XElement))
-                    NextElement = NextElement.NextNode;
-                string id = getID(mainElement);
-                if (idDictionary.ContainsKey(id))
-                {
-                    foreach (XElement partElement in idDictionary[id].Elements())
-                    {
-                        switch (partElement.Name.LocalName)
-                        {
-                            case "RulesElement": mainElement.ReplaceWith(partElement); break;
-                            case "RemoveNodes": removeElement(partElement, mainElement); break;
-                            case "AppendNodes": appendToElement(partElement, mainElement); break;
-                            case "DeleteElement": deleteElement(partElement, mainElement); break;
-                        }
-                        mainElement = prev.NextNode as XElement; // Lost Parent
-                    }
-                    idDictionary.Remove(id);
-                }
-                if (idDictionary.ContainsKey("nullID"))
-                {
-                    XElement[] MassAppends = idDictionary["nullID"].Elements().ToArray();
-                    for (int i = 0; i < MassAppends.Length; i++)
-                    {
-                        XElement partElement = MassAppends[i];
-                        string[] ids = partElement.Attribute("ids").Value.Trim().Split(',');
-                        if (ids.Contains(id))
-                            appendToElement(partElement, mainElement);
-                    }
-                }
-                if (idDictionary.Keys.FirstOrDefault() == null)
-                    return; // Quick way of aborting if we're done.  Anything more complex isn't really worth it.
-            } while ((mainElement = NextElement as XElement) != null);
-            Log.Info("Applying new elements");
-            foreach (String id in idDictionary.Keys.ToArray())
-            {
-                XElement RulesCollection = idDictionary[id];
-                mainElement = new XElement("RulesElement", new XAttribute("internal-id","deleteme"));
-                main.Root.Add(mainElement);
-                
-                XNode prev = mainElement.PreviousNode;
-                foreach (XElement partElement in RulesCollection.Elements())
-                {
-                    switch (partElement.Name.LocalName)
-                    {
-                        case "RulesElement": mainElement.ReplaceWith(partElement); break;
-                        case "RemoveNodes": removeElement(partElement, mainElement); break;
-                        case "AppendNodes": appendToElement(partElement, mainElement); break;
-                        case "DeleteElement": deleteElement(partElement, mainElement); break;
-                    }
-                    mainElement = prev.NextNode as XElement; // Lost Parent
-                }
-                if (getID(mainElement) == "deleteme")
-                    mainElement.Remove(); // It was only an append.
-                idDictionary.Remove(id);
-            }
+            Log.Info($" - Saving rules data to disk");
+            ci.SaveRulesFile(merger.MakeDocument(), MergedPath);
         }
 
         private bool CheckMetaData(FileInfo fi, XDocument customContent)
@@ -442,51 +298,6 @@ namespace CBLoader
                 currentlyMerged.Add(lmfi);
             else
                 currentlyMerged[index] = lmfi;
-        }
-
-        /// <summary>
-        /// Gets the base document to merge from. Attempt to use an intermediary document which should contain all
-        /// merged files that have not been changed. This is useful if 1 document is actively being changed while
-        /// all other documents remain the same.
-        /// </summary>
-        /// <param name="customFiles"></param>
-        /// <returns></returns>
-        private XDocument GetBaseDocument(String fileName)
-        {
-            if (!File.Exists(fileName))
-            {
-                // clear out any old tmp files
-                foreach (string file in Directory.GetFiles(FileManager.BasePath, "*.tmp"))
-                    File.Delete(file);
-                fileName = CoreFileName;
-            }
-            return (XDocument)XDocument.Load(fileName, LoadOptions.PreserveWhitespace);
-        }
-
-        private static string GetIntermediaryFilename(IEnumerable<IGrouping<bool, FileInfo>> files)
-        {
-            StringBuilder mergeName = new StringBuilder();
-            foreach (var mergedFile in files.First())
-                mergeName.Append(mergedFile.FullName + mergedFile.LastWriteTime.ToString() + "**");
-            string fileName = Convert.ToBase64String(
-                new SHA1CryptoServiceProvider()
-                 .ComputeHash(
-                     Encoding.ASCII.GetBytes(
-                         mergeName.ToString()))).Replace("+", "-").Replace("/", "_");
-            fileName = fileName + ".tmp";
-            return FileManager.BasePath + fileName;
-        }
-
-        /// <summary>
-        /// Saves the specified document to the specified filename
-        /// </summary>
-        private void SaveDocument(XDocument main, string filename)
-        {
-            using (XmlTextWriter xw = new XmlTextWriter(filename, Encoding.UTF8))
-            {
-                xw.Formatting = Formatting.Indented;
-                SaveDocument(xw, main.Root);
-            }
         }
         
         /// <summary>
@@ -547,174 +358,6 @@ namespace CBLoader
         }
 
         /// <summary>
-        /// Merges one document into another.
-        /// </summary>
-        /// <param name="part"></param>
-        /// <param name="main"></param>
-        private void MergePart(XDocument part, XDocument main)
-        {
-            foreach(XElement partElement in part.Root.Elements()) {
-                string id = getID(partElement);
-                if (id != null)
-                {
-                    XElement mainElement = main.Root.Descendants("RulesElement").FirstOrDefault(xe => getID(xe) == id);
-                    if (mainElement != null)
-                    {
-                        switch (partElement.Name.LocalName)
-                        {
-                            case "RulesElement": mainElement.ReplaceWith(partElement); break;
-                            case "RemoveNodes": removeElement(partElement, mainElement); break;
-                            case "AppendNodes": appendToElement(partElement, mainElement); break;
-                            case "DeleteElement": deleteElement(partElement, mainElement); break;
-                        }
-                    }
-                    else if (partElement.Name == "RulesElement")
-                        main.Root.Add(partElement);
-                }
-                else if (partElement.Name == "MassAppend")
-                    massAppend(partElement, main);
-            }
-       }
-
-        /// <summary>
-        /// Appends the contents to multiple elements
-        /// </summary>
-        /// <param name="partElement"></param>
-        private static void massAppend(XElement partElement, XDocument main)
-        {
-            string[] ids = partElement.Attribute("ids").Value.Trim().Split(',');
-            IEnumerable<XElement> elements = main.Root.Descendants("RulesElement").Where(xe => ids.Contains(getID(xe)));
-            partElement.Attribute("ids").Remove(); // Don't pass the Attribute around.
-            foreach (XElement mainRule in elements)
-            {
-                appendToElement(partElement, mainRule);
-            }
-        }
-
-        /// <summary>
-        /// Removes the element
-        /// </summary>
-        /// <param name="partElement"></param>
-        /// <param name="mainElement"></param>
-        private static void removeElement(XElement partElement, XElement mainElement)
-        {
-            foreach (XElement el in partElement.Descendants())  // Find the node(s) to be removed.
-            {
-                String elName = getName(el);
-                XElement e2 = mainElement.Descendants().FirstOrDefault(xe => getName(xe) == elName);
-                if (e2 != null)
-                    e2.Remove();
-            }
-        }
-
-        /// <summary>
-        /// Takes elements from the first node, and adds them to the second.
-        /// </summary>
-        /// <param name="partRule"></param>
-        /// <param name="mainRule"></param>
-        private static void appendToElement(XElement partRule, XElement mainRule)
-        { 
-            // this is the recursive guts of <AppendNodes>
-            foreach (XNode node in partRule.Nodes())
-            {
-                if (node is XElement) // Fix for Issue 48
-                {
-                    XElement partChild = node as XElement;
-
-                    // What we do depends on the node in question.
-                    String id = getID(partChild);
-                    String name = getName(partChild);
-
-                    if (partChild.Name == "rules")
-                    {
-                        // It's the <rules> tag.  Stuff goes inside.
-                        XElement e2 = mainRule.Element("rules");
-                        if (e2 == null)
-                            mainRule.Add(e2 = new XElement("rules"));
-                        appendToElement(partChild, e2);
-                    }
-                    else if (partChild.Name == "Category")
-                    {
-                        // <Category> contains a CSV string.  Append to that string.  CB doesn't care about duplicate entries, so don't bother checking.
-                        XElement e2 = mainRule.Element("Category");
-                        if (e2 == null)
-                            mainRule.Add(e2 = new XElement("Category"));
-
-                        // remove any spaces or commas at the start or end.
-                        e2.Value = e2.Value.Trim(' ', ',');
-                        //shove a comma, then the new values (also cleaned up) onto the end.
-                        e2.Value = e2.Value + "," + partChild.Value.Trim(' ', ',');
-                        // now we put spaces at the start.  Becuase that's how we found it.  This line can probably be safely removed.
-                        e2.Value = " " + e2.Value.Trim(' ', ',') + " ";
-                    }
-                    else
-                    {
-                        XElement e2 = new XElement(partChild.Name);
-                        foreach (XAttribute a in partChild.Attributes())
-                            e2.Add(a);
-                        mainRule.Add(e2);
-                        appendToElement(partChild, e2);
-                    }
-                }
-                else if (node is XText)
-                {
-                    XText text = node as XText;
-                    text.Value = text.Value.Trim();
-                    if (text.Value != "") // Don't go sprinkling "   " throughout the xml, please.
-                        mainRule.Add(text);
-                }
-                else
-                {
-                    mainRule.Add(node);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Removes the RulesElement.
-        /// </summary>
-        /// <param name="partRule"></param>
-        /// <param name="mainRule"></param>
-        private static void deleteElement(XElement partRule, XElement mainRule)
-        { // Removes the Element completely, whereas RemoveNodes gets rid of contents.
-            mainRule.Remove();
-        }
-
-        /// <summary>
-        /// Gets the ID element from a rule element if available
-        /// </summary>
-        /// <param name="customRule">The rule element</param>
-        /// <returns>The internal id, or null if none is found</returns>
-        private static string getID(XElement customRule)
-        {
-            XAttribute attrib = customRule.Attribute("internal-id");
-            string id = null;
-            if (attrib != null)
-            {
-                id = attrib.Value;
-                //try to find this id in main
-            }
-            return id;
-        }
-
-        /// <summary>
-        /// Gets the ID element from a rule element if available
-        /// </summary>
-        /// <param name="customRule">The rule element</param>
-        /// <returns>The internal id, or null if none is found</returns>
-        private static string getName(XElement customRule)
-        {
-            XAttribute attrib = customRule.Attribute("name");
-            string id = null;
-            if (attrib != null)
-            {
-                id = attrib.Value;
-                //try to find this id in main
-            }
-            return id;
-        }
-
-        /// <summary>
         /// Extracts the .encrypted file into a .main file and creates a .part file if necessary
         /// <param name="forced">If true, the .encrypted file will always be extracted. Otherwise it is only extracted
         /// if it is updated.</param>
@@ -724,7 +367,7 @@ namespace CBLoader
             var rulesFile = Path.Combine(rootDirectory, ENCRYPTED_FILENAME);
             if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(rulesFile) > File.GetLastWriteTime(CoreFileName))
             {
-                Log.Info("Extracting " + CoreFileName);
+                Log.Info(" - Extracting " + CoreFileName);
                 try
                 {
                     using (StreamReader sr = new StreamReader(ci.OpenEncryptedFile(rulesFile)))

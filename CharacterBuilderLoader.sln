@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27428.2002
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CharacterBuilderLoader", "CharacterBuilderLoader.csproj", "{355AFEF1-5BE9-48B0-922A-0067E62B286C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CBLoader", "CBLoader.csproj", "{355AFEF1-5BE9-48B0-922A-0067E62B286C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dnlib", "dnlib\src\dnlib.csproj", "{FDFC1237-143F-4919-8318-4926901F4639}"
 EndProject

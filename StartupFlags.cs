@@ -25,7 +25,6 @@ namespace CBLoader
         public bool AlwaysRemerge { get; set; }
         public bool UpdateFirst { get; set; }
         public bool LaunchBuilder { get; set; }
-        public bool NewMergeLogic { get; set; }
         public bool ShowChangelog { get; set; }
 
         [XmlIgnore] public bool FastModeSpecified { get; set; }
@@ -33,7 +32,6 @@ namespace CBLoader
         [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
         [XmlIgnore] public bool UpdateFirstSpecified { get; set; }
         [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
-        [XmlIgnore] public bool NewMergeLogicSpecified { get; set; }
         [XmlIgnore] public bool ShowChangelogSpecified { get; set; }
     }
 
@@ -186,8 +184,6 @@ namespace CBLoader
                     this.UpdateFirst = settings.UpdateFirst;
                 if (settings.LaunchBuilderSpecified)
                     this.LoadExec = settings.LaunchBuilder;
-                if (settings.NewMergeLogicSpecified)
-                    fm.UseNewMergeLogic = settings.NewMergeLogic;
                 if (settings.ShowChangelogSpecified)
                     UpdateLog.ShowChangelog = settings.ShowChangelog;
                 if (settings.RawArgs != null)
