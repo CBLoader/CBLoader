@@ -12,7 +12,7 @@
     <AssemblyName>CBLoader</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <ApplicationIcon>Resources\hres-large.ico</ApplicationIcon>
+    <ApplicationIcon>Properties\hres-large.ico</ApplicationIcon>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
@@ -68,6 +68,9 @@
   <PropertyGroup>
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>CBLoader.Program</StartupObject>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -103,7 +106,6 @@
     <None Include="default.cbconfig">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="icons\hres-huge.ico" />
     <Content Include="Changelog.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -113,15 +115,7 @@
     <Content Include="README.TXT">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Resources\hres-large.ico" />
-    <None Include="icons\hres-med.ico" />
-    <None Include="icons\hres-small.ico" />
-    <None Include="icons\lres-large.ico" />
-    <None Include="icons\lres-med.ico" />
-    <None Include="icons\lres-small.ico" />
-    <None Include="icons\mres-large.ico" />
-    <None Include="icons\mres-med.ico" />
-    <None Include="icons\mres-small.ico" />
+    <Content Include="Properties\hres-large.ico" />
     <None Include="Properties\app.manifest" />
   </ItemGroup>
   <ItemGroup>
@@ -142,20 +136,16 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="dnlib\src\dnlib.csproj">
+    <ProjectReference Include="..\dnlib\src\dnlib.csproj">
       <Project>{fdfc1237-143f-4919-8318-4926901f4639}</Project>
       <Name>dnlib</Name>
     </ProjectReference>
-    <ProjectReference Include="Mono.Options\Mono.Options.csproj">
+    <ProjectReference Include="..\Mono.Options\Mono.Options.csproj">
       <Project>{ab4cf537-0032-434e-8d92-5337e752e768}</Project>
       <Name>Mono.Options</Name>
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <MSBuildCommunityTasksPath>$(MSBuildProjectDirectory)\.build</MSBuildCommunityTasksPath>
-  </PropertyGroup>
-  <Import Project="$(MSBuildCommunityTasksPath)\MSBuild.Community.Tasks.targets" />
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

@@ -1,8 +1,4 @@
-bin/
-obj/
-*.suo
-publish/
-*.csproj.user
-packages/
-Resources/Thumbs.db
+*/bin/
+*/obj/
+*/*.csproj.user
 .vs/
