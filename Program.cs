@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -28,11 +27,13 @@ namespace CBLoader
         public bool AlwaysRemerge { get; set; }
         public bool LaunchBuilder { get; set; }
         public bool CheckForUpdates { get; set; }
+        public bool SetFileAssociations { get; set; }
 
         [XmlIgnore] public bool VerboseModeSpecified { get; set; }
         [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
         [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
         [XmlIgnore] public bool CheckForUpdatesSpecified { get; set; }
+        [XmlIgnore] public bool SetFileAssociationsSpecified { get; set; }
 
         // Deprecated options
         public string KeyFile { get; set; }
@@ -69,6 +70,7 @@ namespace CBLoader
         public bool ForceRemerge = false;
         public bool LaunchBuilder = true;
         public bool CheckForUpdates = true;
+        public bool SetFileAssociations = false;
 
         private void deprecatedCheck(string filename, bool exists, string tag, string extra = null)
         {
@@ -106,6 +108,7 @@ namespace CBLoader
             if (data.AlwaysRemergeSpecified) ForceRemerge = data.AlwaysRemerge;
             if (data.LaunchBuilderSpecified) LaunchBuilder = data.LaunchBuilder;
             if (data.CheckForUpdatesSpecified) CheckForUpdates = data.CheckForUpdates;
+            if (data.SetFileAssociationsSpecified) SetFileAssociations = data.SetFileAssociations;
 
             LoadedConfigPath = filename;
 
@@ -205,37 +208,40 @@ namespace CBLoader
             bool? forceRemerge = null;
             bool? launchBuilder = null;
             bool? checkForUpdates = null;
+            bool? setFileAssociations = null;
 
             var opts = new OptionSet() {
                 "Usage: CBLoader [-c <config file>]",
                 "A homebrew rules loader for the D&D Insider Character Builder",
                 "",
+                { "h|?|help", "Shows this help message.",
+                    value => showHelp = true },
+                { "v|verbose", "Enables additional debugging output.",
+                    value => verboseMode = true },
                 { "c|config=", "A config file to use rather than the default.",
                     value => setUniqueString(ref configFile, "-c", value) },
                 { "no-config", "Do not use a configuration file.",
                     value => noConfig = true },
-                { "h|?|help", "Shows this help message.",
-                    value => showHelp = true },
                 "",
                 "Path management:",
                 { "u|cache-path=", "Sets where to write temporary files.",
                     value => setUniqueString(ref cachePath, "-u", value) },
                 { "cb-path=", "Sets where character builder is installed.",
-                    value => setUniqueString(ref cbPath, "--cb-path", value) },
+                    value => setUniqueString(ref cbPath, "--cb-path", value) }, 
                 { "f|folder=", "Adds a directory to search for custom rules in.",
                     value => options.PartDirectories.Add(value) },
                 { "ignore-part=", "Adds a part file to ignore.",
                     value => options.IgnoreParts.Add(value) },
                 "",
                 "Execution options:",
-                { "v|verbose", "Enables additional debugging output.",
-                    value => verboseMode = true },
                 { "e|force-remerge", "Always regenerate merged rules file.",
                     value => forceRemerge = true },
                 { "n|no-run", "Do not actually launch the character builder.",
                     value => launchBuilder = false },
                 { "d|no-update", "Do not check for updates.",
                     value => checkForUpdates = false },
+                { "a|set-assocations", "Associate .dnd4e and .cbconfig with CBLoader.",
+                    value => setFileAssociations = false },
             };
 
             var execArgs = opts.Parse(args);
@@ -261,6 +267,7 @@ namespace CBLoader
             if (forceRemerge != null) options.ForceRemerge = (bool) forceRemerge;
             if (launchBuilder != null) options.LaunchBuilder = (bool) launchBuilder;
             if (checkForUpdates != null) options.CheckForUpdates = (bool) checkForUpdates;
+            if (setFileAssociations != null) options.SetFileAssociations = (bool) setFileAssociations;
 
             // Set various derived configuration options.
             if (options.CBPath == null && (options.CBPath = Utils.GetInstallPath()) == null)
@@ -281,16 +288,18 @@ namespace CBLoader
             var options = processOptions(args);
             if (options == null) return;
 
+            if (options.VerboseMode) Log.VerboseMode = true;
+
             CryptoInfo cryptoInfo = new CryptoInfo(options);
             FileManager fileManager = new FileManager(options, cryptoInfo);
 
+            if (options.SetFileAssociations)
+                Utils.UpdateRegistry();
             if (options.CheckForUpdates)
                 fileManager.DoUpdates(options.ForceRemerge);
             fileManager.ExtractAndMerge(options.ForceRemerge);
             if (options.LaunchBuilder)
                 ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), fileManager.MergedPath);
-
-            Utils.CheckIfUserAssoc();
         }
 
         [STAThread]

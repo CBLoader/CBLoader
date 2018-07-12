@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.IO;
 
 namespace CBLoader
 {
@@ -115,49 +116,64 @@ namespace CBLoader
             */
         }
 
-        public static void CheckIfUserAssoc()
+        [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+        private static void createAssociation(string uniqueId, string extension, string flags, string friendlyName)
         {
-            var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey("Software").OpenSubKey("Classes").OpenSubKey(".dnd4e");
-            if (key == null || key.OpenSubKey("shell") == null)
-                UpdateRegistry(true);
+            var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
+
+            {
+                if (cuClasses.OpenSubKey(uniqueId) != null)
+                    cuClasses.DeleteSubKeyTree(uniqueId);
+
+                var progIdKey = cuClasses.CreateSubKey(uniqueId);
+                progIdKey.SetValue("", friendlyName);
+                progIdKey.SetValue("FriendlyTypeName", friendlyName);
+                progIdKey
+                    .CreateSubKey("shell").CreateSubKey("open").CreateSubKey("command")
+                    .SetValue("", $"\"{Path.GetFullPath(typeof(Utils).Assembly.Location)}\" {flags} \"%1\"");
+                progIdKey
+                    .CreateSubKey("CurVer")
+                    .SetValue("", uniqueId);
+            }
+
+            {
+                if (cuClasses.OpenSubKey(extension) != null)
+                    cuClasses.DeleteSubKeyTree(extension);
+
+                var progIdKey = cuClasses.CreateSubKey(extension);
+                progIdKey.SetValue("", uniqueId);
+                progIdKey.SetValue("PerceivedType", "Document");
+            }
+        }
+        private static void addAction(string uniqueId, string actionName, string invoke)
+        {
+            var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
+            var progIdKey = cuClasses.CreateSubKey(uniqueId);
+            progIdKey
+                .CreateSubKey("shell").CreateSubKey(actionName).CreateSubKey("command")
+                .SetValue("", invoke);
         }
 
         /// <summary>
         /// Sets .dnd4e File Association to CBLoader.
         /// This means that the user can double-click a character file and launch CBLoader.
         /// </summary>
-        public static void UpdateRegistry(bool silent = false)
-        { // I'm not going to bother explaining File Associations. Either look it up yourself, or trust me that it works.
-            try // Changing HKCL needs admin permissions
-            {
-                
-                Microsoft.Win32.RegistryKey cuClasses = Microsoft.Win32.Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
-                var k = cuClasses.CreateSubKey(".dnd4e");
-                k.SetValue("", ".dnd4e");
-                k = k.CreateSubKey("shell");
-                k = k.CreateSubKey("open");
-                k = k.CreateSubKey("command");
-                k.SetValue("", "\"" + (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe\" \"%1\""));
-                // All Users
-                k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".dnd4e");
-                k.SetValue("", ".dnd4e");
-                k = k.CreateSubKey("shell");
-                k = k.CreateSubKey("open");
-                k = k.CreateSubKey("command");
-                k.SetValue("", "\"" + (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe\" \"%1\""));
-                // And the cbconfig files
-                k = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".cbconfig");
-                k.SetValue("", ".cbconfig");
-                k = k.CreateSubKey("shell");
-                k = k.CreateSubKey("open");
-                k = k.CreateSubKey("command");
-                k.SetValue("", "\"" + (Environment.CurrentDirectory.ToString() + "\\CBLoader.exe\" -c \"%1\""));
-            }
-            catch (UnauthorizedAccessException ua)
-            {
-                if (!silent)
-                Log.Error("There was a problem setting file associations", ua);
-            }
+        public static void UpdateRegistry()
+        {
+            if (!IS_WINDOWS) return;
+
+            Log.Info("Setting file associations...");
+            Log.Debug();
+
+            createAssociation("CBLoader.dnd4e.1", ".dnd4e", "--",
+                              "D&D Insider Character Builder file");
+            createAssociation("CBLoader.cbconfig.1", ".cbconfig", "-c",
+                              "CBLoader configuration file");
+            addAction("CBLoader.cbconfig.1", "Edit CBLoader Configuration", 
+                      "notepad.exe \"%1\"");
+            SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
         }
     }
 }

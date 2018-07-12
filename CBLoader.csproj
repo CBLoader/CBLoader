@@ -8,7 +8,7 @@
     <ProjectGuid>{355AFEF1-5BE9-48B0-922A-0067E62B286C}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CharacterBuilderLoader</RootNamespace>
+    <RootNamespace>CBLoader</RootNamespace>
     <AssemblyName>CBLoader</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -64,6 +64,7 @@
   <PropertyGroup>
     <GenerateManifests>false</GenerateManifests>
   </PropertyGroup>
+  <PropertyGroup />
   <PropertyGroup>
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>

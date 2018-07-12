@@ -1,5 +1,30 @@
+<!-- This file contains the configuration for CBLoader. -->
 <Settings>
+  <!-- A list of folders to load .part files from. -->
   <Folders>
     <Custom>Custom</Custom>
   </Folders>
+  
+  <!-- A list of part files to ignore. -->
+  <Ignore>
+    <Part>XXX_part-to-ignore.part</Part>
+  </Ignore>
+  
+  <!-- Uncomment this to change the directory CBLoader stores its temporary files in. -->
+  <!-- <CachePath>Cache</CachePath> -->
+  
+  <!-- Uncomment this to set the directory Character Loader is in. -->
+  <!-- <CharacterBuilderPath>C:\Program Files (x86)\Wizards of the Coast\Character Builder</CharacterBuilderPath> -->
+  
+  <!-- Set this to true to enable additional debugging output. -->
+  <VerboseMode>false</VerboseMode>
+  
+  <!-- Set this to true to always remerge .part files.-->
+  <AlwaysRemerge>false</AlwaysRemerge>
+  
+  <!-- Set this to false to disable update checking. -->
+  <CheckForUpdates>true</CheckForUpdates>
+  
+  <!-- Set this to false to disable associating CBLoader with .dnd4e and .cbconfig on boot. -->
+  <SetFileAssociations>true</SetFileAssociations>
 </Settings>
