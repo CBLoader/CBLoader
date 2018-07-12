@@ -198,21 +198,21 @@ namespace CBLoader
 
         public readonly byte[] regPatcherKeyData;
 
-        public CryptoInfo(string cbDirectory)
+        public CryptoInfo(LoaderOptions options)
         {
             Log.Info("Loading encryption keys.");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(cbDirectory, "D20RulesEngine.dll"));
-            var parsedKeyFile = new ParsedKeyFile(CB_APP_ID, Path.Combine(cbDirectory, "HeroicDemo.update"));
+            var parsedD20Engine = new ParsedD20RulesEngine(Path.Combine(options.CBPath, "D20RulesEngine.dll"));
+            var parsedKeyFile = new ParsedKeyFile(CB_APP_ID, Path.Combine(options.CBPath, "HeroicDemo.update"));
 
             this.expectedDemoHash = parsedD20Engine.expectedDemoHash;
             this.expectedNormalHash = parsedD20Engine.expectedNormalHash;
             this.demoUpdateGuid = parsedKeyFile.currentUpdateGuid;
             this.demoKeyData = parsedKeyFile.keyData;
 
-            var regPatcherPath = Path.Combine(cbDirectory, "RegPatcher.dat");
+            var regPatcherPath = Path.Combine(options.CBPath, "RegPatcher.dat");
             this.regPatcherKeyData = File.Exists(regPatcherPath) ? Convert.FromBase64String(File.ReadAllText(regPatcherPath)) : null;
 
             stopwatch.Stop();
@@ -240,7 +240,9 @@ namespace CBLoader
             if (updateId == demoUpdateGuid) return demoKeyData;
 
             if (regPatcherKeyData == null)
-                Log.Error("Could not retrieve key data from RegPatcher.dat.\nPlease update the Character Builder to the April 2009 patch or later.");
+                throw new CBLoaderException(
+                    "Could not retrieve key data from RegPatcher.dat.\n"+
+                    "Please update the Character Builder to the April 2009 patch or later.");
 
             return regPatcherKeyData;
         }

@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace CBLoader
 {
@@ -37,14 +38,31 @@ namespace CBLoader
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+        [DllImport("oleacc.dll")]
+        private static extern IntPtr GetProcessHandleFromHwnd(IntPtr hWnd);
+
+        [DllImport("kernel32.dll")]
+        private static extern int GetProcessId(IntPtr process);
+
         private const int SW_HIDE = 0;
         private const int SW_SHOW = 5;
 
+        private static bool ownsConsole()
+        {
+            var console = GetConsoleWindow();
+            if (console.ToInt64() == 0) return false;
+            var process = GetProcessHandleFromHwnd(console);
+            if (process.ToInt64() == 0) return false;
+            return GetProcessId(process) == Process.GetCurrentProcess().Id;
+        }
+
+        public static readonly bool IsInIndependentConsole = 
+            Utils.IS_WINDOWS && ownsConsole();
+
         public static void SetConsoleShown(bool show)
         {
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT &&
-                Environment.OSVersion.Platform != PlatformID.Win32S &&
-                Environment.OSVersion.Platform != PlatformID.Win32Windows) return;
+            if (!Utils.IS_WINDOWS) return;
+            if (!IsInIndependentConsole) return;
 
             var console = GetConsoleWindow();
             if (console.ToInt64() == 0) return;
@@ -54,9 +72,16 @@ namespace CBLoader
 
     internal static class Utils
     {
+        internal static bool IS_WINDOWS =
+            Environment.OSVersion.Platform == PlatformID.Win32NT ||
+            Environment.OSVersion.Platform == PlatformID.Win32S ||
+            Environment.OSVersion.Platform == PlatformID.Win32Windows;
+
         private static string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
         public static string GetInstallPath()
         {
+            if (!IS_WINDOWS) return null;
+
             var reg = Registry.LocalMachine
                 .OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{CB_INSTALL_ID}");
             if (reg == null) return null;

@@ -295,7 +295,7 @@ namespace CBLoader
         {
             var attr = element.Attribute(INTERNAL_ID);
             if (attr == null)
-                throw new Exception($"No internal-id found in node: {element}");
+                throw new CBLoaderException($"No internal-id found in node: {element}");
             return attr.Value;
         }
         private void processElement(XElement element)
@@ -340,7 +340,7 @@ namespace CBLoader
         private void ProcessDocument(XDocument document)
         {
             if (document.Root.Name.LocalName.ToLower() != "d20rules")
-                throw new Exception("Part file does not have a D20Rules element at its root.");
+                throw new CBLoaderException("Part file does not have a D20Rules element at its root.");
             foreach (var element in document.Root.Elements())
                 processElement(element);
         }

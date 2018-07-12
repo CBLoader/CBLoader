@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CBLoader", "CBLoader.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dnlib", "dnlib\src\dnlib.csproj", "{FDFC1237-143F-4919-8318-4926901F4639}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mono.Options", "Mono.Options\Mono.Options.csproj", "{AB4CF537-0032-434E-8D92-5337E752E768}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,18 @@ Global
 		{FDFC1237-143F-4919-8318-4926901F4639}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{FDFC1237-143F-4919-8318-4926901F4639}.Release|x86.ActiveCfg = Release|Any CPU
 		{FDFC1237-143F-4919-8318-4926901F4639}.Release|x86.Build.0 = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Debug|x86.Build.0 = Debug|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|x86.ActiveCfg = Release|Any CPU
+		{AB4CF537-0032-434E-8D92-5337E752E768}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

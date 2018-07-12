@@ -25,110 +25,30 @@ namespace CBLoader
         private const string GENERAL_EXTRACT_ERROR = 
             "Unknown error extracting combined.dnd40.encrypted. " +
             "Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriate permissions.";
+        private static XmlSerializer SERIALIZER = new XmlSerializer(typeof(List<LastMergedFileInfo>));
 
-        private List<string> customFolders;
-        private List<string> ignoredParts;
-        private static XmlSerializer mergedSerializer = new XmlSerializer(typeof(List<LastMergedFileInfo>));
-        private static List<LastMergedFileInfo> currentlyMerged;
+        private readonly LoaderOptions options;
+        private readonly CryptoInfo cryptoInfo;
 
-        public static string KeyFile { get; set; }
-
-        private static string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\CBLoader\\";
-        public static string BasePath
-        {
-            get { return basePath; }
-            set
-            {
-                basePath = value;
-                if (!File.Exists(KeyFile) && File.Exists(BasePath + "cbloader.keyfile")) // Weird things can happen with multiple config files.
-                    KeyFile = BasePath + "cbloader.keyfile";
-                if (!Directory.Exists(BasePath))
-                    Directory.CreateDirectory(BasePath);
-
-                if (File.Exists(MergedFileInfo))
-                {
-                    using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
-                    {
-                        currentlyMerged = (List<LastMergedFileInfo>)mergedSerializer.Deserialize(sr);
-                    }
-                }
-                else
-                    currentlyMerged = new List<LastMergedFileInfo>();
-            }
-        }
-        public static string MergedPath
-        {
-            get { return BasePath + "combined.dnd40.encrypted"; }
-        }
-        private static string MergedFileInfo
-        {
-            get { return  BasePath + "cbloader.merged"; }
-        }
-        private static string CoreFileName
-        {
-            get { return BasePath + "combined.dnd40.main"; }
-        }
+        private List<LastMergedFileInfo> currentlyMerged = new List<LastMergedFileInfo>();
         
-        public FileManager()
+        public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
+        public string MergedFileInfo { get => Path.Combine(options.CachePath, "cbloader.merged"); }
+        public string CoreFileName { get => Path.Combine(options.CachePath, "combined.dnd40.main"); }
+        
+        public FileManager(LoaderOptions options, CryptoInfo cryptoInfo)
         {
-            KeyFile = BasePath +  "cbloader.keyfile";
-            if (!Directory.Exists(BasePath))
-                Directory.CreateDirectory(BasePath);
+            this.options = options;
+            this.cryptoInfo = cryptoInfo;
+
+            if (!Directory.Exists(options.CachePath))
+                Directory.CreateDirectory(options.CachePath);
 
             if (File.Exists(MergedFileInfo))
-            {
                 using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
-                {
-                    currentlyMerged = (List<LastMergedFileInfo>)mergedSerializer.Deserialize(sr);
-                }
-            }
-            else
-                currentlyMerged = new List<LastMergedFileInfo>();
-            customFolders = new List<string>();
-            ignoredParts = new List<string>();
-            string ddi = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi");
-            if (Directory.Exists(ddi))
-            {
-                AddCustomFolder(Directory.CreateDirectory(Path.Combine(ddi, "CBLoader")).FullName);
-                foreach (var subfolder in Directory.GetDirectories(Path.Combine(ddi, "CBLoader"), "*", SearchOption.AllDirectories))
-                {
-                    AddCustomFolder(new DirectoryInfo(subfolder).FullName);                   
-                }
-            }
+                    currentlyMerged = (List<LastMergedFileInfo>) SERIALIZER.Deserialize(sr);
         }
-
-        /// <summary>
-        /// Gets the list of custom folders.
-        /// </summary>
-        public List<string> CustomFolders
-        {
-            get { return customFolders; }
-        }
-
-        /// <summary>
-        /// Gets the list of ignored parts.
-        /// </summary>
-        public List<string> IgnoredParts
-        {
-            get { return ignoredParts; }
-        }
-
-        public bool AddCustomFolder(string folder)
-        {
-            folder = Environment.ExpandEnvironmentVariables(folder).Trim(); // Expand any Environmental Variables.
-            DirectoryInfo di = new DirectoryInfo(folder);
-            if (!di.Exists)
-                di = new DirectoryInfo(Path.Combine(basePath, folder));
-            if (!di.Exists)
-                di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), folder));
-            if (!di.Exists)
-                return false;
-            folder = di.FullName; // No longer relative, so we can safely change the WD to CharacterBuilder.
-            if (customFolders.Contains(folder)) // We weren't actually checking if a folder got added twice.
-                return false;
-            customFolders.Add(folder);
-            return true;
-        }
+        
         /// <summary>
         /// If necessary extracts the unencrypted data from the zip file. And merges the .main and .part file(s) into the
         /// final file name. 
@@ -136,14 +56,14 @@ namespace CBLoader
         /// If this is false, the encrypted file will only be extracted if it is updated and the .main and .part files will only
         /// be merged if one has been touched. If forced is true, the files will be re-extracted and remerged regardless</param>
         /// </summary>
-        public void ExtractAndMerge(bool forced, string rootDirectory, CryptoInfo ci)
+        public void ExtractAndMerge(bool forced)
         {
             Log.Info("Updating merged game data.");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            ExtractFile(forced, rootDirectory, ci);
-            MergeFiles(forced, ci);
+            ExtractFile(forced);
+            MergeFiles(forced);
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
@@ -156,7 +76,7 @@ namespace CBLoader
         /// <param name="forced"></param>
         public bool CheckIndexes(bool forced)
         {
-            List<FileInfo> Indexes = customFolders.SelectMany(
+            List<FileInfo> Indexes = options.PartDirectories.SelectMany(
                 GetIndexesFromDirectory).OrderBy(f => f.Name).ToList();
             bool NewFiles = false;
 
@@ -169,7 +89,7 @@ namespace CBLoader
         }
 
         /// <summary>
-        /// Check an individual index for updates.  Refactored out of CheckIndexes for the ability to recurse.
+        /// Check an individual index for updates. Refactored out of CheckIndexes for the ability to recurse.
         /// </summary>
         private bool CheckIndex(bool forced, bool NewFiles, System.Net.WebClient wc, FileInfo index)
         {
@@ -180,7 +100,7 @@ namespace CBLoader
                 try
                 {
                     string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
-                    if (ignoredParts.Contains(Part.Element("Filename").Value.ToLower().Trim()))
+                    if (options.IsPartIgnored(Part.Element("Filename").Value.ToLower().Trim()))
                         continue;
                     if (!File.Exists(filename) || forced)
                     {
@@ -213,14 +133,14 @@ namespace CBLoader
         /// <param name="forced">if true, the .main and .part files will always be merged. Otherwise they are only merged if
         /// one has been touched.</param>
         /// </summary>
-        private void MergeFiles(bool forced, CryptoInfo ci)
+        private void MergeFiles(bool forced)
         {
             if (!File.Exists(CoreFileName))
                 throw new Exception("Error, could not find file: " + CoreFileName);
 
-            List<FileInfo> customFiles = customFolders.SelectMany(
+            List<FileInfo> customFiles = options.PartDirectories.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
-            customFiles.RemoveAll(f => IgnoredParts.Contains(f.Name.ToLower().Trim()));
+            customFiles.RemoveAll(f => options.IsPartIgnored(f.Name.ToLower().Trim()));
 
             // bail out if nothing is modified
             if (!forced && File.Exists(MergedPath) && currentlyMerged.Count > 0)
@@ -230,13 +150,13 @@ namespace CBLoader
             }
 
             // construct the custom rules file
-            MergeFiles(customFiles, ci);
+            MergeFiles(customFiles);
         }
 
         /// <summary>
         /// Merges the specified files
         /// </summary>
-        private void MergeFiles(List<FileInfo> customFiles, CryptoInfo ci)
+        private void MergeFiles(List<FileInfo> customFiles)
         {
             var merger = new PartMerger("D&D4E");
             Log.Info($" - Adding rules from core file");
@@ -245,9 +165,13 @@ namespace CBLoader
             {
                 Log.Info($" - Adding rules from {file}");
                 merger.ProcessDocument(file.FullName);
+                updateMergedList(file.FullName, file.LastWriteTime);
             }
             Log.Info($" - Saving rules data to disk");
-            ci.SaveRulesFile(merger.MakeDocument(), MergedPath);
+            cryptoInfo.SaveRulesFile(merger.MakeDocument(), MergedPath);
+            Log.Trace($" - Updating merged list.");
+            using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
+                SERIALIZER.Serialize(sw, currentlyMerged);
         }
 
         private bool CheckMetaData(FileInfo fi, XDocument customContent)
@@ -366,15 +290,15 @@ namespace CBLoader
         /// <param name="forced">If true, the .encrypted file will always be extracted. Otherwise it is only extracted
         /// if it is updated.</param>
         /// </summary>
-        private void ExtractFile(bool forced, string rootDirectory, CryptoInfo ci)
+        private void ExtractFile(bool forced)
         {
-            var rulesFile = Path.Combine(rootDirectory, ENCRYPTED_FILENAME);
+            var rulesFile = Path.Combine(options.CBPath, ENCRYPTED_FILENAME);
             if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(rulesFile) > File.GetLastWriteTime(CoreFileName))
             {
                 Log.Info(" - Extracting " + CoreFileName);
                 try
                 {
-                    using (StreamReader sr = new StreamReader(ci.OpenEncryptedFile(rulesFile)))
+                    using (StreamReader sr = new StreamReader(cryptoInfo.OpenEncryptedFile(rulesFile)))
                     using (StreamWriter sw = new StreamWriter(CoreFileName))
                     {
                         string xmlData = sr.ReadToEnd();
@@ -390,7 +314,7 @@ namespace CBLoader
         
         public bool DoUpdates(bool forced)
         {
-            List<FileInfo> customFiles = customFolders.SelectMany(
+            List<FileInfo> customFiles = options.PartDirectories.SelectMany(
                 GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
             bool newUpdates = false;
             foreach (FileInfo fi in customFiles)

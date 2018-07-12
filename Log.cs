@@ -21,7 +21,7 @@ namespace CBLoader
 
         public void WriteLogFile(string taggedMsg)
         {
-            outStream.WriteLine($"[{DateTime.Now.ToString()}] {taggedMsg}");
+            outStream.WriteLine($"[{DateTime.Now}] {taggedMsg}");
             outStream.Flush();
         }
     }
@@ -62,7 +62,7 @@ namespace CBLoader
                 if (hasLastLine) sb.Append("\nCaused by: ");
 
                 var excString = current.ToString().Trim();
-                if ((!verbose || current.GetType() == typeof(Exception)) && current.Message != "")
+                if (!verbose && current.Message != null && current.Message != "")
                     excString = excString.Split(new char[] { ':' }, 2)[1].Trim();
                 sb.Append(excString);
 

@@ -79,13 +79,13 @@ namespace CBLoader
 				}
 			}
 			html += string.Concat(this.Footer);
-			File.WriteAllText(Path.Combine(FileManager.BasePath, "Changelog.html"), html);
+			File.WriteAllText(Path.Combine("." /* TODO */, "Changelog.html"), html);
 			if (generated)
 			{
 				try
 				{
                     if (ShowChangelog)
-    					Process.Start(Path.Combine(FileManager.BasePath, "Changelog.html"));
+    					Process.Start(Path.Combine("." /* TODO */, "Changelog.html"));
 				}
 				catch (Exception)
 				{

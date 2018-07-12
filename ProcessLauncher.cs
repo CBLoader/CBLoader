@@ -299,7 +299,7 @@ namespace CBLoader
             AddOverride(callback, assembly, false);
         }
         
-        public static void StartProcess(string cbDirectory, string[] args, string redirectPath)
+        public static void StartProcess(LoaderOptions options, string[] args, string redirectPath)
         {
             Log.Info("Preparing to start CharacterBuilder.exe");
             var stopwatch = new Stopwatch();
@@ -329,16 +329,16 @@ namespace CBLoader
             appDomain.AppendPrivatePath("<|>");
 #pragma warning restore CS0618
 
-            callback.Init(cbDirectory, Log.RemoteReceiver);
+            callback.Init(options.CBPath, Log.RemoteReceiver);
 
             Log.Debug(" - Patching CharacterBuilder.exe");
-            PatchApplication(callback, cbDirectory);
+            PatchApplication(callback, options.CBPath);
 
             Log.Debug(" - Patching ApplicationUpdate.Client.dll");
-            PatchApplicationUpdate(callback, cbDirectory, redirectPath);
+            PatchApplicationUpdate(callback, options.CBPath, redirectPath);
 
             Log.Debug(" - Setting up environment.");
-            Environment.CurrentDirectory = cbDirectory;
+            Environment.CurrentDirectory = options.CBPath;
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
