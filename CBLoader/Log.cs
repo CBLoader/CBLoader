@@ -33,7 +33,7 @@ namespace CBLoader
         public void WriteLogFile(string taggedMsg)
         {
             if (outStream == null) return;
-            outStream.WriteLine($"[{DateTime.Now}] {taggedMsg}");
+            outStream.WriteLine(Utils.NormalizeLineEndings($"[{DateTime.Now}] {taggedMsg}"));
             outStream.Flush();
         }
     }

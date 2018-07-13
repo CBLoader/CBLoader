@@ -176,15 +176,10 @@ namespace CBLoader
             new CBDataHasher(str).State;
         public static string FixXmlHash(string str, uint target_hash)
         {
-            // This is apparently stripped by ReadToEnd.
             str = Utils.StripBOM(str);
-
-            // Normalize line endings to \r\n
-            str = str.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n");
-
+            str = Utils.NormalizeLineEndings(str);
             str += $"\n{XML_MARKER}\n<!-- Fix hash: ";
             str += new CBDataHasher(str).CalculatePreimage(target_hash, " -->\n");
-            Trace.Assert(HashString(str) == target_hash, "FixXmlHash failed!");
             return str;
         }
 

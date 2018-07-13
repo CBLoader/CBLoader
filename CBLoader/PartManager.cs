@@ -240,30 +240,34 @@ namespace CBLoader
             currentMergeInfo.AddFile(EncryptedPath);
             foreach (var part in collectFromDirectories(options.PartDirectories, "*.part"))
                 currentMergeInfo.AddFile(part);
-
-            Log.Debug(" - Checking merge data file");
+            
             var doMerge = true;
-            try
+
+            if (File.Exists(MergedPath))
             {
-                using (var sr = new StreamReader(File.Open(MergedStatePath, FileMode.Open), Encoding.UTF8))
-                {
-                    var mergeInfo = (MergeInfo) SERIALIZER.Deserialize(sr);
-                    if (mergeInfo.SameMergeInfo(currentMergeInfo)) {
-                        Log.Debug(" - Same files already merged.");
-                        doMerge = false;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Debug("   - Error occurred reading merge data file.", e);
+                Log.Debug(" - Checking merge data file");
                 try
                 {
-                    File.Delete(MergedStatePath);
+                    using (var sr = new StreamReader(File.Open(MergedStatePath, FileMode.Open), Encoding.UTF8))
+                    {
+                        var mergeInfo = (MergeInfo) SERIALIZER.Deserialize(sr);
+                        if (mergeInfo.SameMergeInfo(currentMergeInfo)) {
+                            Log.Debug(" - Same files already merged.");
+                            doMerge = false;
+                        }
+                    }
                 }
-                catch (Exception e2)
+                catch (Exception e)
                 {
-                    Log.Debug("   - Error occurred deleting merge data file.", e2);
+                    Log.Debug("   - Error occurred reading merge data file.", e);
+                    try
+                    {
+                        File.Delete(MergedStatePath);
+                    }
+                    catch (Exception e2)
+                    {
+                        Log.Debug("   - Error occurred deleting merge data file.", e2);
+                    }
                 }
             }
 

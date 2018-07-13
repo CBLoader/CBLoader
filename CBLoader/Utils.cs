@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CBLoader
 {
@@ -155,6 +156,8 @@ namespace CBLoader
         public static bool IsFilenameValid(string filename) =>
             filename != "." && filename != ".." &&
             filename.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+        public static string NormalizeLineEndings(string data) =>
+            Regex.Replace(data, @"\r\n?|\n", "\r\n");
         public static string StripBOM(string data) =>
             data.Length > 0 && data[0] == '\uFEFF' ? data.Substring(1, data.Length - 1) : data;
         public static string ParseUTF8(byte[] data) =>
