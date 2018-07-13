@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Text;
 
 namespace CBLoader
 {
@@ -156,5 +157,9 @@ namespace CBLoader
             filename.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
         public static string StripBOM(string data) =>
             data.Length > 0 && data[0] == '\uFEFF' ? data.Substring(1, data.Length - 1) : data;
+        public static string ParseUTF8(byte[] data) =>
+            StripBOM(Encoding.UTF8.GetString(data));
+        public static string HashFile(string filename) =>
+            Convert.ToBase64String(SHA256.Create().ComputeHash(File.ReadAllBytes(filename)));
     }
 }

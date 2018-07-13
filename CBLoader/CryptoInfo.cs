@@ -384,7 +384,7 @@ namespace CBLoader
                 keyStore.FallbackKey = Convert.FromBase64String(File.ReadAllText(regPatcherPath));
             }
 
-            saveKeyFile();
+            if (options.WriteKeyFile) saveKeyFile();
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");

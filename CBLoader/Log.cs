@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace CBLoader
 {
@@ -28,6 +29,7 @@ namespace CBLoader
             }
         }
 
+        [MethodImpl(MethodImplOptions.Synchronized)]
         public void WriteLogFile(string taggedMsg)
         {
             if (outStream == null) return;
@@ -46,11 +48,14 @@ namespace CBLoader
         internal static bool VerboseMode { get => RemoteReceiver.VerboseMode;
                                            set => RemoteReceiver.VerboseMode = value; }
 
+        [MethodImpl(MethodImplOptions.Synchronized)]
         internal static void InitLogging()
         {
             RemoteReceiver = new LogRemoteReceiver(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CBLoader.log"));
             LogPrefix = " ";
         }
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
         internal static void InitLoggingForChildDomain(LogRemoteReceiver remoteReceiver)
         {
             RemoteReceiver = remoteReceiver;

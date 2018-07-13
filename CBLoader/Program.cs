@@ -285,16 +285,21 @@ namespace CBLoader
             if (updateFirst != null) options.UpdateFirst = (bool) updateFirst;
             if (setFileAssociations != null) options.SetFileAssociations = (bool) setFileAssociations;
 
-            // Set various derived configuration options.
             if (options.CBPath == null && (options.CBPath = Utils.GetInstallPath()) == null)
                 throw new CBLoaderException(
                     "CBLoader could not find an installation of Character Builder.\n" +
                     "Please specify its path with <CBPath>path/to/builder</CBPath> in the configuration " +
                     "or reinstall Character Builder.");
-            if (options.KeyFile == null)
-                options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
+
+            // Default keyfile location.
+            if (options.KeyFile == null) options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
+
+            // Default part directory.
             if (options.PartDirectories.Count == 0 && options.LoadedConfigPath == null)
                 options.PartDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
+            
+            // Update first anyway if LaunchBuilder isn't set -- we don't need this optimization.
+            if (!options.LaunchBuilder) options.UpdateFirst = true;
 
             // Check configuration option consistancy.
             options.FinalOptionsCheck();
@@ -316,13 +321,12 @@ namespace CBLoader
             if (options.CheckForUpdates && options.UpdateFirst)
                 fileManager.DoUpdates(options.ForceUpdate, false);
             fileManager.MergeFiles(options.ForceRemerge);
-            if (options.CheckForUpdates && !options.UpdateFirst)
-                new Thread(() => fileManager.DoUpdates(options.ForceUpdate, true)).Start();
             if (options.LaunchBuilder)
                 ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), fileManager.MergedPath);
+            if (options.CheckForUpdates && !options.UpdateFirst)
+                fileManager.DoUpdates(options.ForceUpdate, true);
         }
-
-        [STAThread]
+        
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         internal static void Main(string[] args)
         {

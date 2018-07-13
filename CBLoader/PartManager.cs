@@ -9,6 +9,7 @@ using System.Xml.Serialization;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Net;
+using System.Security.Cryptography;
 
 namespace CBLoader
 {
@@ -62,7 +63,7 @@ namespace CBLoader
             }
 
             if (!info.Exists) throw new Exception($"{info.FullName} does not exist!");
-            
+
             if (addedParts.Contains(info.FullName)) return;
             addedParts.Add(info.FullName);
             PartFiles.Add(new MergedFileInfo(info.FullName, info.LastWriteTime));
@@ -74,6 +75,9 @@ namespace CBLoader
         }
     }
 
+    /// <summary>
+    /// The status of a loaded part file.
+    /// </summary>
     internal sealed class PartStatus
     {
         public bool wasMerged = false;
@@ -95,6 +99,77 @@ namespace CBLoader
         }
     }
 
+    internal sealed class UpdateVersionData
+    {
+        public readonly string Hash, Version;
+
+        public UpdateVersionData(string hash, string version)
+        {
+            Hash = hash;
+            Version = version;
+        }
+    }
+
+    /// <summary>
+    /// A class that checks for updates to part files.
+    /// </summary>
+    internal sealed class UpdateChecker {
+        private readonly WebClient wc;
+        private readonly SHA256 sha256 = SHA256.Create();
+
+        private HashSet<string> downloaded =
+            new HashSet<string>();
+        private Dictionary<string, Dictionary<string, UpdateVersionData>> newFormatVersions = 
+            new Dictionary<string, Dictionary<string, UpdateVersionData>>();
+        private Dictionary<string, string> oldFormatVersions =
+            new Dictionary<string, string>();
+
+        public UpdateChecker(WebClient wc)
+        {
+            this.wc = wc;
+        }
+
+        private void downloadVersion(string updateUrl)
+        {
+            if (downloaded.Contains(updateUrl)) return;
+            Log.Debug($" - Checking for updates at {updateUrl}");
+
+            var data = wc.DownloadString(updateUrl);
+            downloaded.Add(updateUrl);
+            if (data.StartsWith("CBLoader Version File v2\n"))
+            {
+                var newDict = new Dictionary<string, UpdateVersionData>();
+                foreach (var line in data.Trim().Split('\n').Skip(1).Select(x => x.Trim()).Where(x => x != ""))
+                {
+                    var components = line.Split(new char[] { ':' }, 3);
+                    if (components.Length > 1) throw new Exception("Invalid update version file.");
+                    newDict[components[0].Trim()] = new UpdateVersionData(components[1].Trim(), components[2].Trim());
+                }
+                newFormatVersions[updateUrl] = newDict;
+            }
+            else oldFormatVersions[updateUrl] = data.Trim();
+        }
+        private UpdateVersionData getRemoteVersion(string updateUrl, string partFile)
+        {
+            downloadVersion(updateUrl);
+            if (newFormatVersions.ContainsKey(updateUrl))
+                return newFormatVersions[updateUrl][partFile];
+            if (oldFormatVersions.ContainsKey(updateUrl))
+                return new UpdateVersionData(null, oldFormatVersions[updateUrl]);
+            throw new Exception("Invalid UpdateChecker state!");
+        }
+        public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
+        {
+            var partFile = Path.GetFileName(filename);
+            var remoteVersion = getRemoteVersion(updateUrl, partFile);
+            if (remoteVersion.Version != currentVersion)
+                return true;
+            if (remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
+                return true;
+            return false;
+        }
+    }
+
     /// <summary>
     /// Manages interactions with the files on the disc
     /// </summary>
@@ -111,7 +186,7 @@ namespace CBLoader
         public string EncryptedPath { get => Path.Combine(options.CBPath, "combined.dnd40.encrypted"); }
         public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
         public string MergedStatePath { get => Path.Combine(options.CachePath, "merge_state.xml"); }
-        
+
         public PartManager(LoaderOptions options, CryptoInfo cryptoInfo)
         {
             this.options = options;
@@ -242,7 +317,7 @@ namespace CBLoader
             cryptoInfo.SaveRulesFile(merger.MakeDocument(), MergedPath);
         }
 
-        private void checkMetadata(HashSet<string> obsoleteList, FileInfo fi, WebClient wc)
+        private void checkMetadata(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool checkObsolete = true)
         {
             Log.Debug($" - Checking metadata for {fi.FullName}");
 
@@ -257,15 +332,16 @@ namespace CBLoader
                         {
                             var targetFilename = metadata.Element("Filename");
                             if (targetFilename != null && targetFilename.Value.ToLower() != fi.Name.ToLower())
-                                Log.Warn($" - {fi.Name} uses the <Filename> element to rename, which is supported.");
-
-                            var webVersion = wc.DownloadString(address.Value);
-                            var localVersion = metadata.Element("Version").Value;
-                            if (localVersion != webVersion)
+                                Log.Warn($" - {fi.Name} has a <Filename> from its path, which is no longer supported.");
+                            else
                             {
-                                Log.Info($" - Downloading update for {fi.Name} (v{webVersion})");
-                                wc.DownloadFile(metadata.Element("PartAddress").Value, Path.Combine(fi.DirectoryName, fi.FullName));
-                                initPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
+                                var localVersion = metadata.Element("Version").Value;
+                                if (uc.CheckRequiresUpdate(fi.FullName, localVersion, address.Value))
+                                {
+                                    Log.Info($" - Downloading update for {fi.Name}");
+                                    wc.DownloadFile(metadata.Element("PartAddress").Value, Path.Combine(fi.DirectoryName, fi.FullName));
+                                    initPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
+                                }
                             }
                         }
                     }
@@ -275,28 +351,19 @@ namespace CBLoader
                     }
             }
 
+            if (checkObsolete)
             {
                 var customContent = XDocument.Load(fi.FullName);
-                var obsolete = customContent.Root.Element("Obsolete");
-                if (obsolete != null)
-                {
-                    if (!Utils.IsFilenameValid(obsolete.Value))
-                    {
-                        Log.Warn($" - {obsolete.Value} is not a valid filename in {fi.Name}! Skipping.");
-                        return;
-                    }
-
-                    string path = Path.Combine(fi.DirectoryName, obsolete.Value);
-                    obsoleteList.Add(Path.GetFullPath(path));
-                }
+                if (customContent.Root.Element("Obsolete") != null)
+                    Log.Warn($" - {fi.Name} uses the <Obsolete> tag, which is no longer supported in .part files.");
             }
         }
         
-        private void checkIndex(HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool forced)
+        private void checkIndex(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool forced)
         {
             Log.Debug($" - Checking index {fi.FullName}");
 
-            checkMetadata(obsoleteList, fi, wc);
+            checkMetadata(uc, obsoleteList, fi, wc, false);
 
             var partIndex = XDocument.Load(fi.FullName);
             foreach (var part in partIndex.Root.Elements("Part"))
@@ -317,14 +384,15 @@ namespace CBLoader
                     {
                         var partAddress = part.Element("PartAddress").Value;
                         Log.Info($" - Downloading {partName}");
-                        var xmlString = Utils.StripBOM(Encoding.UTF8.GetString(wc.DownloadData(partAddress)));
+                        var data = wc.DownloadData(partAddress);
+                        var xmlString = Utils.ParseUTF8(data);
                         var xmlObj = XDocument.Load(XmlReader.Create(new StringReader(xmlString)));
 
-                        File.WriteAllText(outputFile, xmlString, Encoding.UTF8);
+                        File.WriteAllBytes(outputFile, data);
                         initPartStatus(outputFile, xmlObj).wasAdded = true;
                         
                         if (Path.GetExtension(outputFile).ToLower() == ".part")
-                            checkIndex(obsoleteList, new FileInfo(outputFile), wc, forced);
+                            checkIndex(uc, obsoleteList, new FileInfo(outputFile), wc, forced);
                     }
                 }
                 catch (WebException e)
@@ -372,14 +440,15 @@ namespace CBLoader
                 }
 
                 var wc = new WebClient();
+                var uc = new UpdateChecker(wc);
                 var customFiles = collectFromDirectories(options.PartDirectories, "*.part");
                 var indexes = collectFromDirectories(options.PartDirectories, "*.index");
 
                 var obsoleteList = new HashSet<string>();
                 foreach (var fi in indexes)
-                    checkIndex(obsoleteList, fi, wc, forced);
+                    checkIndex(uc, obsoleteList, fi, wc, forced);
                 foreach (var fi in customFiles)
-                    checkMetadata(obsoleteList, fi, wc);
+                    checkMetadata(uc, obsoleteList, fi, wc);
                 foreach (var obsolete in obsoleteList)
                     deleteObsolete(obsolete);
 

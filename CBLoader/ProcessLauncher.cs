@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security;
+using System.Threading;
 
 namespace CBLoader
 {
@@ -346,7 +347,12 @@ namespace CBLoader
 
             Log.Info("Launching CharacterBuilder.exe");
             if (!Log.VerboseMode) ConsoleWindow.SetConsoleShown(false);
-            appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args);
+            var thread = new Thread(() => {
+                appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args);
+                Log.Debug("CharacterBuilder.exe terminated.");
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
         }
     }
 }
