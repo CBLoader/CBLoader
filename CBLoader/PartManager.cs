@@ -40,6 +40,9 @@ namespace CBLoader
     public sealed class MergeInfo
     {
         [XmlElement(IsNullable = false)]
+        public string CBLoaderVersion;
+
+        [XmlElement(IsNullable = false)]
         public KeyStore EncryptionData;
 
         [XmlArray(IsNullable = false)]
@@ -51,13 +54,16 @@ namespace CBLoader
 
         public bool SameMergeInfo(MergeInfo info)
         {
-            return EncryptionData == info.EncryptionData && PartFiles.SequenceEqual(info.PartFiles);
+            return CBLoaderVersion == info.CBLoaderVersion && 
+                   EncryptionData == info.EncryptionData &&
+                   PartFiles.SequenceEqual(info.PartFiles);
         }
         public void AddFile(FileInfo info)
         {
             if (addedParts == null) {
                 if (PartFiles != null)
                     throw new Exception("Do not call AddFiles on a MergeInfo acquired via serialization.");
+                CBLoaderVersion = typeof(MergeInfo).Assembly.FullName;
                 PartFiles = new List<MergedFileInfo>();
                 addedParts = new HashSet<string>();
             }
@@ -185,6 +191,7 @@ namespace CBLoader
 
         public string EncryptedPath { get => Path.Combine(options.CBPath, "combined.dnd40.encrypted"); }
         public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
+        public string ChangelogPath { get => Path.Combine(options.CachePath, "merged_modules.html"); }
         public string MergedStatePath { get => Path.Combine(options.CachePath, "merge_state.xml"); }
 
         public PartManager(LoaderOptions options, CryptoInfo cryptoInfo)
@@ -208,24 +215,40 @@ namespace CBLoader
             if (!partStatus.ContainsKey(filename))
             {
                 var status = new PartStatus(filename);
-                var updateInfo = sources.Element("UpdateInfo");
-                if (updateInfo != null) status.FirstFoundVersion = sources.Element("Version").Value;
+                var updateInfo = sources.Root.Element("UpdateInfo");
+                if (updateInfo != null) status.FirstFoundVersion = updateInfo.Element("Version").Value;
                 partStatus[filename] = status;
             }
 
             {
                 var status = partStatus[filename];
-                var updateInfo = sources.Element("UpdateInfo");
+                var updateInfo = sources.Root.Element("UpdateInfo");
                 status.Version = updateInfo != null ? updateInfo.Element("Version").Value : null;
-                var changelog = sources.Element("Changelog");
+                var changelog = sources.Root.Element("Changelog");
                 status.Changelog = changelog != null ? changelog.Value : null;
                 return status;
             }
         }
 
         /// <summary>
+        /// Generates the log file shown in the Character Builder title page.
+        /// </summary>
+        private string createChangelog()
+        {
+            var partLog = new PartLog();
+            foreach (var modulePath in mergeOrder)
+                partLog.AddModule(partStatus[modulePath]);
+            foreach (var module in partStatus.Values)
+                partLog.AddModule(module);
+            return partLog.Generate();
+        }
+
+        /// <summary>
         /// Merges the combined.dnd4e.encrypted and .part file(s) into the final combined output
         /// file. If any have changed, they will be remerged.
+        /// 
+        /// This is only designed to be called once in the lifetime of a PartManager. (Otherwise,
+        /// the update log state tracking will break.)
         /// <param name="forced">Whether to ignore the current merge state.</param>
         /// </summary>
         public void MergeFiles(bool forced)
@@ -319,6 +342,8 @@ namespace CBLoader
             });
             Log.Info(" - Saving rules data to disk");
             cryptoInfo.SaveRulesFile(merger.MakeDocument(), MergedPath);
+            Log.Info(" - Saving changelog to disk");
+            File.WriteAllText(ChangelogPath, createChangelog(), Encoding.UTF8);
         }
 
         private void checkMetadata(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool checkObsolete = true)
@@ -428,12 +453,20 @@ namespace CBLoader
             initPartStatus(filename, XDocument.Load(filename)).wasObsoleted = true;
             File.Delete(filename);
         }
-        
+
+        /// <summary>
+        /// Checks all .part and .index files for updates.
+        /// 
+        /// This is only designed to be called once in the lifetime of a PartManager. (Otherwise,
+        /// the update log state tracking will break.)
+        /// </summary>
+        /// <param name="forced">Whether to always redownload files from indexes.</param>
+        /// <param name="background">Whether this is being run in the background.</param>
         public void DoUpdates(bool forced, bool background)
         {
             try
             {
-                Log.Info($"Updating rules files.{(background ? " (In the background)" : "")}");
+                Log.Info($"Updating rules files.{(background ? " (in the background)" : "")}");
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
 

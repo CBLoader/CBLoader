@@ -179,7 +179,7 @@ namespace CBLoader
         static Program()
         {
             var ver = typeof(Program).Assembly.GetName().Version;
-            Version = $"{ver.Major}.{ver.Minor}.{ver.Revision}";
+            Version = $"{ver.Major}.{ver.Minor}.{ver.Build}";
         }
         
         private static void setUniqueString(ref string target, string flag, string value)
@@ -322,7 +322,8 @@ namespace CBLoader
                 fileManager.DoUpdates(options.ForceUpdate, false);
             fileManager.MergeFiles(options.ForceRemerge);
             if (options.LaunchBuilder)
-                ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), fileManager.MergedPath);
+                ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
+                                             fileManager.MergedPath, fileManager.ChangelogPath);
             if (options.CheckForUpdates && !options.UpdateFirst)
                 fileManager.DoUpdates(options.ForceUpdate, true);
         }
@@ -357,7 +358,6 @@ namespace CBLoader
 
             if (Log.ErrorLogged && ConsoleWindow.IsInIndependentConsole)
             {
-                ConsoleWindow.SetConsoleShown(true);
                 Console.Write("Error encountered. Would you like to open the log file? (y/n) ");
                 if (Console.ReadKey().Key == ConsoleKey.Y)
                 {

@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security;
+using System.Text;
 using System.Threading;
 
 namespace CBLoader
@@ -143,19 +144,17 @@ namespace CBLoader
             exception.HandlerStart = method.Body.Instructions[handlerStart];
         }
 
-        private static void RemoveTitleCallHome(AssemblyDef assembly)
+        private static void InjectChangelog(AssemblyDef assembly, string changelog)
         {
             var imp = new Importer(assembly.ManifestModule);
             var type = assembly.ManifestModule.Find("Character_Builder.TitlePage", false);
 
-            // Replace the URI the update page (I presume) is loaded from with an non-existing resource.
-            // We can use this later to put our own update information, I guess.
             var property = type.FindProperty("CBInfoUrl");
             var method = property.GetMethod;
 
             method.Body = new CilBody();
             method.Body.MaxStack = 1;
-            method.Body.Instructions.Add(OpCodes.Ldstr.ToInstruction("pack://application:,,,/NonExistantResource.html"));
+            method.Body.Instructions.Add(OpCodes.Ldstr.ToInstruction($"file://{Path.GetFullPath(changelog)}"));
             method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
         }
 
@@ -197,7 +196,7 @@ namespace CBLoader
             }
         }
 
-        private static void PatchApplication(TargetDomainCallback callback, string cbDirectory)
+        private static void PatchApplication(TargetDomainCallback callback, string cbDirectory, string changelog)
         {
             var assembly = LoadAssembly(cbDirectory, "CharacterBuilder.exe");
 
@@ -205,8 +204,8 @@ namespace CBLoader
             DisableExceptionHandlers(assembly);
             ReplaceEntryPointHandler(assembly);
 
-            Log.Debug("   - Preventing initial attempt to load page on Wizards website.");
-            RemoveTitleCallHome(assembly);
+            Log.Debug("   - Injecting CBLoader changelog.");
+            InjectChangelog(assembly, changelog);
 
             Log.Debug("   - Removing D&D Compendium links.");
             RemoveCompendiumLinks(assembly);
@@ -249,7 +248,7 @@ namespace CBLoader
             AddOverride(callback, assembly, false);
         }
         
-        public static void StartProcess(LoaderOptions options, string[] args, string redirectPath)
+        public static void StartProcess(LoaderOptions options, string[] args, string redirectPath, string changelog)
         {
             Log.Info("Preparing to start CharacterBuilder.exe");
             var stopwatch = new Stopwatch();
@@ -282,7 +281,7 @@ namespace CBLoader
             callback.Init(options.CBPath, Log.RemoteReceiver);
 
             Log.Debug(" - Patching CharacterBuilder.exe");
-            PatchApplication(callback, options.CBPath);
+            PatchApplication(callback, options.CBPath, changelog);
 
             Log.Debug(" - Patching ApplicationUpdate.Client.dll");
             PatchApplicationUpdate(callback, options.CBPath, redirectPath);
@@ -295,10 +294,12 @@ namespace CBLoader
             Log.Debug();
 
             Log.Info("Launching CharacterBuilder.exe");
-            if (!Log.VerboseMode) ConsoleWindow.SetConsoleShown(false);
             var thread = new Thread(() => {
+                var hideLog = !Log.VerboseMode;
+                if (hideLog) ConsoleWindow.SetConsoleShown(false);
                 appDomain.ExecuteAssemblyByName("CharacterBuilder", null, args);
                 Log.Debug("CharacterBuilder.exe terminated.");
+                if (hideLog && Log.ErrorLogged) ConsoleWindow.SetConsoleShown(true);
             });
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();

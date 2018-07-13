@@ -11,8 +11,8 @@
     <Part>XXX_part-to-ignore.part</Part>
   </Ignore>
   
-  <!-- Uncomment this to change the directory CBLoader stores its temporary files in. -->
-  <!-- <BasePath>Cache</BasePath> -->
+  <!--  The directory CBLoader stores its temporary files in. -->
+  <BasePath>Cache</BasePath>
   
   <!-- Uncomment this to set the directory Character Loader is in. -->
   <!-- <CharacterBuilderPath>C:\Program Files (x86)\Wizards of the Coast\Character Builder</CharacterBuilderPath> -->
