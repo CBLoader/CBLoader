@@ -88,14 +88,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FileManager.cs" />
+    <Compile Include="PartManager.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="ProcessLauncher.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PartMerger.cs" />
     <Compile Include="CryptoInfo.cs" />
-    <Compile Include="UpdateLog.cs" />
+    <Compile Include="PartLog.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>

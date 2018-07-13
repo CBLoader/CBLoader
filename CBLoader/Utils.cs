@@ -90,33 +90,6 @@ namespace CBLoader
             else return reg.GetValue("InstallLocation").ToString();
         }
 
-        public static void ExtractKeyFile(string filename)
-        {
-            /*
-            RegistryKey rk = Registry.LocalMachine.OpenSubKey("SOFTWARE").OpenSubKey("Wizards of the Coast")
-                .OpenSubKey(CryptoUtils.CB_APP_ID.ToString());
-            string currentVersion = rk.GetValue(null).ToString();
-            string encryptedKey = rk.OpenSubKey(currentVersion).GetValue(null).ToString();
-            byte[] stuff = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
-            byte[] base64Str = Convert.FromBase64String(encryptedKey);
-            string realKey = Convert.ToBase64String(ProtectedData.Unprotect(base64Str, stuff, DataProtectionScope.LocalMachine));
-            XDocument xd = new XDocument();
-            XElement applications = new XElement("Applications");
-            XElement application = new XElement("Application");
-            application.Add(new XAttribute("ID", CryptoUtils.CB_APP_ID.ToString()));
-            application.Add(new XAttribute("CurrentUpdate", currentVersion));
-            application.Add(new XAttribute("InProgress", "true"));
-            application.Add(new XAttribute("InstallStage", "Complete"));
-            application.Add(new XAttribute("InstallDate", DateTime.Now.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK")));
-            XElement update = new XElement("Update" + currentVersion);
-            update.Add(realKey);
-            application.Add(update);
-            applications.Add(application);
-            xd.Add(applications);
-            xd.Save(filename);
-            */
-        }
-
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
 
@@ -177,5 +150,11 @@ namespace CBLoader
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
             Log.Debug();
         }
+
+        public static bool IsFilenameValid(string filename) =>
+            filename != "." && filename != ".." &&
+            filename.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+        public static string StripBOM(string data) =>
+            data.Length > 0 && data[0] == '\uFEFF' ? data.Substring(1, data.Length - 1) : data;
     }
 }

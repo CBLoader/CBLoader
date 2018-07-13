@@ -29,6 +29,9 @@
   
   <!-- Set this to false to disable update checking. -->
   <CheckForUpdates>true</CheckForUpdates>
+
+  <!-- Set this to true to update parts before merging them.-->
+  <UpdateFirst>false</UpdateFirst>
   
   <!-- Set this to false to disable associating CBLoader with .dnd4e and .cbconfig on boot. -->
   <SetFileAssociations>true</SetFileAssociations>

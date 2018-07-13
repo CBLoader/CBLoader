@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Xml.Serialization;
 
 namespace CBLoader
@@ -29,6 +30,7 @@ namespace CBLoader
         public bool AlwaysRemerge { get; set; }
         public bool LaunchBuilder { get; set; }
         public bool CheckForUpdates { get; set; }
+        public bool UpdateFirst { get; set; }
         public bool SetFileAssociations { get; set; }
 
         [XmlIgnore] public bool WriteKeyFileSpecified { get; set; }
@@ -36,16 +38,15 @@ namespace CBLoader
         [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
         [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
         [XmlIgnore] public bool CheckForUpdatesSpecified { get; set; }
+        [XmlIgnore] public bool UpdateFirstSpecified { get; set; }
         [XmlIgnore] public bool SetFileAssociationsSpecified { get; set; }
 
         // Deprecated options
         public bool FastMode { get; set; }
-        public bool UpdateFirst { get; set; }
         public bool NewMergeLogic { get; set; }
         public bool ShowChangelog { get; set; }
 
         [XmlIgnore] public bool FastModeSpecified { get; set; }
-        [XmlIgnore] public bool UpdateFirstSpecified { get; set; }
         [XmlIgnore] public bool NewMergeLogicSpecified { get; set; }
         [XmlIgnore] public bool ShowChangelogSpecified { get; set; }
     }
@@ -69,9 +70,11 @@ namespace CBLoader
 
         public bool WriteKeyFile = false;
         public bool VerboseMode = false;
+        public bool ForceUpdate = false;
         public bool ForceRemerge = false;
         public bool LaunchBuilder = true;
         public bool CheckForUpdates = true;
+        public bool UpdateFirst = false;
         public bool SetFileAssociations = false;
 
         private void deprecatedCheck(string filename, bool exists, string tag, string extra = null)
@@ -100,18 +103,18 @@ namespace CBLoader
 
             if (CachePath == null) CachePath = configRoot;
 
-            if (data.WriteKeyFileSpecified) WriteKeyFile = true;
+            if (data.WriteKeyFileSpecified) WriteKeyFile = data.WriteKeyFile;
             if (data.VerboseModeSpecified) VerboseMode = data.VerboseMode;
             if (data.AlwaysRemergeSpecified) ForceRemerge = data.AlwaysRemerge;
             if (data.LaunchBuilderSpecified) LaunchBuilder = data.LaunchBuilder;
             if (data.CheckForUpdatesSpecified) CheckForUpdates = data.CheckForUpdates;
+            if (data.UpdateFirstSpecified) UpdateFirst = data.UpdateFirst;
             if (data.SetFileAssociationsSpecified) SetFileAssociations = data.SetFileAssociations;
 
             LoadedConfigPath = filename;
             
             deprecatedCheck(filename, data.FastModeSpecified, "FastMode",
                             "The new merge logic should be fast enough to not require it.");
-            deprecatedCheck(filename, data.UpdateFirstSpecified, "UpdateFirst");
             deprecatedCheck(filename, data.NewMergeLogicSpecified, "NewMergeLogic",
                             "A faster merge algorithm is always used now.");
             deprecatedCheck(filename, data.ShowChangelog, "ShowChangelog");
@@ -154,14 +157,12 @@ namespace CBLoader
             foreach (var ignorePart in IgnoreParts)
             {
                 var pattern = Regex.Escape(ignorePart).Replace(@"\*\*", @".*").Replace(@"\*", @"[^/\\]*").Replace(@"\?", @".");
-                ignoreGlobs.Add(new Regex($"^{pattern}$"));
+                ignoreGlobs.Add(new Regex($"^{pattern}$", RegexOptions.IgnoreCase));
             }
         }
 
-        public bool IsPartIgnored(string partName)
-        {
-            return ignoreGlobs.Any(x => x.IsMatch(partName));
-        }
+        public bool IsPartIgnored(string partName) =>
+            ignoreGlobs.Any(x => x.IsMatch(partName));
     }
 
     /// <summary>
@@ -201,9 +202,11 @@ namespace CBLoader
 
             bool? writeKeyFile = null;
             bool? verboseMode = null;
+            bool? forceUpdate = null;
             bool? forceRemerge = null;
             bool? launchBuilder = null;
             bool? checkForUpdates = null;
+            bool? updateFirst = null;
             bool? setFileAssociations = null;
 
             var opts = new OptionSet() {
@@ -239,6 +242,10 @@ namespace CBLoader
                     } },
                 "",
                 "Execution options:",
+                { "update-first", "Update before merging, rather than after.",
+                    value => updateFirst = true },
+                { "force-update", "Redownload parts files.",
+                    value => forceUpdate = true },
                 { "e|force-remerge", "Always regenerate merged rules file.",
                     value => forceRemerge = true },
                 { "n|no-run", "Do not actually launch the character builder.",
@@ -271,9 +278,11 @@ namespace CBLoader
 
             if (writeKeyFile != null) options.WriteKeyFile = (bool) writeKeyFile;
             if (verboseMode != null) options.VerboseMode = (bool) verboseMode;
+            if (forceUpdate != null) options.ForceUpdate = (bool) forceUpdate;
             if (forceRemerge != null) options.ForceRemerge = (bool) forceRemerge;
             if (launchBuilder != null) options.LaunchBuilder = (bool) launchBuilder;
-            if (checkForUpdates != null) options.CheckForUpdates = (bool) checkForUpdates;
+            if (checkForUpdates != null) options.CheckForUpdates = (bool)checkForUpdates;
+            if (updateFirst != null) options.UpdateFirst = (bool) updateFirst;
             if (setFileAssociations != null) options.SetFileAssociations = (bool) setFileAssociations;
 
             // Set various derived configuration options.
@@ -300,13 +309,15 @@ namespace CBLoader
             if (options.VerboseMode) Log.VerboseMode = true;
 
             CryptoInfo cryptoInfo = new CryptoInfo(options);
-            FileManager fileManager = new FileManager(options, cryptoInfo);
+            PartManager fileManager = new PartManager(options, cryptoInfo);
 
             if (options.SetFileAssociations)
                 Utils.UpdateRegistry();
-            if (options.CheckForUpdates)
-                fileManager.DoUpdates(options.ForceRemerge);
+            if (options.CheckForUpdates && options.UpdateFirst)
+                fileManager.DoUpdates(options.ForceUpdate, false);
             fileManager.MergeFiles(options.ForceRemerge);
+            if (options.CheckForUpdates && !options.UpdateFirst)
+                new Thread(() => fileManager.DoUpdates(options.ForceUpdate, true)).Start();
             if (options.LaunchBuilder)
                 ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), fileManager.MergedPath);
         }
@@ -315,9 +326,11 @@ namespace CBLoader
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         internal static void Main(string[] args)
         {
+            Console.WriteLine($"CBLoader version {Version}");
+            Console.WriteLine();
             Log.InitLogging();
-            Log.Info(String.Format("CBLoader version {0}", Version));
-            Log.Info();
+            Log.Trace($"CBLoader version {Version}");
+            Log.Trace();
 
             try
             {

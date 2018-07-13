@@ -8,7 +8,7 @@ using System.Xml.Linq;
 
 namespace CBLoader
 {
-	internal class UpdateLog
+	internal class PartLog
 	{
 		private FileInfo[] parts;
 		private string[] Header = new string[]

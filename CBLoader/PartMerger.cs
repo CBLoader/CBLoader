@@ -337,16 +337,12 @@ namespace CBLoader
             }
         }
 
-        private void ProcessDocument(XDocument document)
+        public void ProcessDocument(XDocument document)
         {
             if (document.Root.Name.LocalName.ToLower() != "d20rules")
                 throw new CBLoaderException("Part file does not have a D20Rules element at its root.");
             foreach (var element in document.Root.Elements())
                 processElement(element);
         }
-        public void ProcessDocument(Stream document) =>
-            ProcessDocument(XDocument.Load(XmlReader.Create(document)));
-        public void ProcessDocument(string filename) =>
-            ProcessDocument(XDocument.Load(filename));
     }
 }

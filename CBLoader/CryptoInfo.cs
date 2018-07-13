@@ -176,12 +176,8 @@ namespace CBLoader
             new CBDataHasher(str).State;
         public static string FixXmlHash(string str, uint target_hash)
         {
-            if (str[0] == '\uFEFF')
-            {
-                // This is apparently stripped by ReadToEnd.
-                Log.Debug("Stripping UTF-8 BOM.");
-                str = str.Substring(1, str.Length - 1);
-            }
+            // This is apparently stripped by ReadToEnd.
+            str = Utils.StripBOM(str);
 
             // Normalize line endings to \r\n
             str = str.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n");

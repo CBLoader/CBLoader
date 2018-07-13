@@ -16,11 +16,21 @@ namespace CBLoader
             this.LogFileLocation = logFileLocation;
 
             var file = File.Open(logFileLocation, FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
-            this.outStream = new StreamWriter(file);
+
+            try
+            {
+                this.outStream = new StreamWriter(file);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(Log.FallbackFormatError("Failed to initialize logging!", e));
+                Console.WriteLine();
+            }
         }
 
         public void WriteLogFile(string taggedMsg)
         {
+            if (outStream == null) return;
             outStream.WriteLine($"[{DateTime.Now}] {taggedMsg}");
             outStream.Flush();
         }
@@ -76,6 +86,9 @@ namespace CBLoader
                 Console.WriteLine(ExceptionMessage(e, $"{(alwaysTag ? $"{tag}: " : "")}{message}", VerboseMode));
             RemoteReceiver.WriteLogFile(ExceptionMessage(e, $"{LogPrefix}{tag.PadRight(5)}: {message}", true));
         }
+
+        internal static string FallbackFormatError(string msg = null, Exception e = null) =>
+            ExceptionMessage(e, $"Error: {msg}", true);
 
         public static void Trace(string msg = null, Exception e = null) =>
             BaseLog("Trace", false, false, msg, e);
