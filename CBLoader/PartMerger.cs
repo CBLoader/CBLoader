@@ -41,7 +41,7 @@ namespace CBLoader
                     break;
             }
             if (!valid)
-                Log.Warn($"    - Attempt to set invalid attribute '{attribute}' in '{InternalId}'");
+                Log.Warn($"   - Attempt to set invalid attribute '{attribute}' in '{InternalId}'");
             return valid;
         }
 
@@ -102,7 +102,7 @@ namespace CBLoader
         private string elementValue(XElement element)
         {
             if (element.FirstNode != null && (!(element.FirstNode is XText) || element.FirstNode.NextNode != null))
-                Log.Warn($"    - Tag {element} contains non-text elements!");
+                Log.Warn($"   - Tag {element} contains non-text elements!");
             return element.Value;
         }
 
@@ -130,7 +130,7 @@ namespace CBLoader
                 rules.Add(text);
                 return;
             }
-            Log.Warn($"    - Encountered unknown rules node: {node}");
+            Log.Warn($"   - Encountered unknown rules node: {node}");
         }
         private void pushNode(XNode node)
         {
@@ -171,7 +171,7 @@ namespace CBLoader
                 return;
             }
 
-            Log.Warn($"    - Encountered unknown RulesElement node: {node}");
+            Log.Warn($"   - Encountered unknown RulesElement node: {node}");
         }
         internal void AddNodes(XElement element, bool attributes = true)
         {
@@ -183,13 +183,13 @@ namespace CBLoader
         private void removeSpecific(string key)
         {
             if (!specific.ContainsKey(key))
-                Log.Warn($"    - Attempt to delete non-existant specific '{key}' in '{InternalId}'");
+                Log.Warn($"   - Attempt to delete non-existant specific '{key}' in '{InternalId}'");
             else specific.Remove(key);
         }
         private void removeAttribute(string attr)
         {
             if (!attributes.ContainsKey(attr))
-                Log.Warn($"    - Attempt to delete non-existant attribute '{attr}' in '{InternalId}'");
+                Log.Warn($"   - Attempt to delete non-existant attribute '{attr}' in '{InternalId}'");
             else attributes.Remove(attr);
         }
         private void processRemoveNode(XNode node)
@@ -205,7 +205,7 @@ namespace CBLoader
                     case "specific":
                         var nameAttr = element.Attribute("name");
                         if (nameAttr == null)
-                            Log.Warn($"    - Attempt to remove a specific in '{InternalId}' without an name. A name attribute is required.");
+                            Log.Warn($"   - Attempt to remove a specific in '{InternalId}' without an name. A name attribute is required.");
                         else removeSpecific(nameAttr.Value);
                         return;
                     case "prereqs":
@@ -233,18 +233,18 @@ namespace CBLoader
             {
                 var text = (XText) node;
                 if (text.Value.Trim() == "") return;
-                Log.Warn(@"    - Text was found in an RemoveNodes element. To remove text from a rule, use <MainText/> instead.");
+                Log.Warn(@"   - Text was found in an RemoveNodes element. To remove text from a rule, use <MainText/> instead.");
                 return;
             }
 
-            Log.Warn($"    - Encountered unknown RemoveNodes node: {node}");
+            Log.Warn($"   - Encountered unknown RemoveNodes node: {node}");
         }
         internal void RemoveNodes(XElement element)
         {
             foreach (var attribute in element.Attributes())
                 if (attribute.Name.LocalName != PartMerger.INTERNAL_ID)
                 {
-                    Log.Warn($"    - Attributes found in an RemoveNodes tag for '{InternalId}'. " +
+                    Log.Warn($"   - Attributes found in an RemoveNodes tag for '{InternalId}'. " +
                              $"To remove an attribute from a rule, add an <Attribute name=\"{attribute.Name.LocalName}\"> tag instead.");
                     break;
                 }
@@ -311,19 +311,19 @@ namespace CBLoader
                 case "massappend":
                     foreach (var id in element.Attribute("ids").Value.Split(',').Select(x => x.Trim()).Where(x => x != ""))
                         if (!rules.ContainsKey(id))
-                            Log.Warn($"    - Attempt to mass append to non-existant RulesElement '{id}'");
+                            Log.Warn($"   - Attempt to mass append to non-existant RulesElement '{id}'");
                         else getRules(id, false).AddNodes(element, attributes: false);
                     break;
                 case "removenodes":
                     var removeId = internalId(element);
                     if (!rules.ContainsKey(removeId))
-                        Log.Warn($"    - Attempt to remove nodes from non-existant RulesElement '{removeId}'");
+                        Log.Warn($"   - Attempt to remove nodes from non-existant RulesElement '{removeId}'");
                     else getRules(removeId, false).RemoveNodes(element);
                     break;
                 case "deleteelement":
                     var deleteId = internalId(element);
                     if (!rules.ContainsKey(deleteId))
-                        Log.Warn($"    - Attempt to delete non-existant RulesElement '{deleteId}'");
+                        Log.Warn($"   - Attempt to delete non-existant RulesElement '{deleteId}'");
                     else rules.Remove(deleteId);
                     break;
                 case "appendrawelements":
@@ -332,7 +332,7 @@ namespace CBLoader
                 case "changelog": case "updateinfo":
                     break;
                 default:
-                    Log.Warn($"    - Encountered unknown D20Rules element: {element}");
+                    Log.Warn($"   - Encountered unknown D20Rules element: {element}");
                     break;
             }
         }

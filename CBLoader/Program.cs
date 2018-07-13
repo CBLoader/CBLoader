@@ -19,16 +19,19 @@ namespace CBLoader
         public string[] Ignore { get; set; }
 
         // Current string options
-        public string CachePath { get; set; }
+        public string KeyFile { get; set; }
+        public string BasePath { get; set; }
         public string CharacterBuilderPath { get; set; }
 
         // Current boolean options
+        public bool WriteKeyFile { get; set; }
         public bool VerboseMode { get; set; }
         public bool AlwaysRemerge { get; set; }
         public bool LaunchBuilder { get; set; }
         public bool CheckForUpdates { get; set; }
         public bool SetFileAssociations { get; set; }
 
+        [XmlIgnore] public bool WriteKeyFileSpecified { get; set; }
         [XmlIgnore] public bool VerboseModeSpecified { get; set; }
         [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
         [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
@@ -36,9 +39,6 @@ namespace CBLoader
         [XmlIgnore] public bool SetFileAssociationsSpecified { get; set; }
 
         // Deprecated options
-        public string KeyFile { get; set; }
-        public string BasePath { get; set; }
-
         public bool FastMode { get; set; }
         public bool UpdateFirst { get; set; }
         public bool NewMergeLogic { get; set; }
@@ -62,10 +62,12 @@ namespace CBLoader
 
         public bool HasWarnings = false;
 
+        public string KeyFile = null;
         public string LoadedConfigPath = null;
         public string CBPath = null;
         public string CachePath = null;
 
+        public bool WriteKeyFile = false;
         public bool VerboseMode = false;
         public bool ForceRemerge = false;
         public bool LaunchBuilder = true;
@@ -80,12 +82,6 @@ namespace CBLoader
             Log.Warn($"Configuration file {filename} has option <{tag}>. This option is no longer supported.{extra}");
             HasWarnings = true;
         }
-        private void replacementCheck(bool exists, string tag, string newTag)
-        {
-            if (!exists) return;
-            Log.Warn($"Configuration option <{tag}> has been renamed <>. Please use it instead.");
-            HasWarnings = true;
-        }
         private string processPath(string configRoot, string relative)
         {
             return Path.Combine(configRoot, Environment.ExpandEnvironmentVariables(relative.Trim()));
@@ -98,12 +94,13 @@ namespace CBLoader
             if (data.Folders != null) PartDirectories.AddRange(data.Folders.Select(x => processPath(configRoot, x)));
             if (data.Ignore != null) IgnoreParts.AddRange(data.Ignore.Select(x => x.Trim()));
 
+            if (data.KeyFile != null) KeyFile = processPath(configRoot, data.KeyFile);
             if (data.BasePath != null) CachePath = processPath(configRoot, data.BasePath);
-            if (data.CachePath != null) CachePath = processPath(configRoot, data.CachePath);
             if (data.CharacterBuilderPath != null) CBPath = processPath(configRoot, data.CharacterBuilderPath);
 
             if (CachePath == null) CachePath = configRoot;
 
+            if (data.WriteKeyFileSpecified) WriteKeyFile = true;
             if (data.VerboseModeSpecified) VerboseMode = data.VerboseMode;
             if (data.AlwaysRemergeSpecified) ForceRemerge = data.AlwaysRemerge;
             if (data.LaunchBuilderSpecified) LaunchBuilder = data.LaunchBuilder;
@@ -111,10 +108,7 @@ namespace CBLoader
             if (data.SetFileAssociationsSpecified) SetFileAssociations = data.SetFileAssociations;
 
             LoadedConfigPath = filename;
-
-            replacementCheck(data.BasePath != null, "BasePath", "CachePath");
-            deprecatedCheck(filename, data.KeyFile != null, "KeyFile",
-                            "CBLoader can now pull keys from files guaranteed to exist.");
+            
             deprecatedCheck(filename, data.FastModeSpecified, "FastMode",
                             "The new merge logic should be fast enough to not require it.");
             deprecatedCheck(filename, data.UpdateFirstSpecified, "UpdateFirst");
@@ -201,9 +195,11 @@ namespace CBLoader
             var noConfig = false;
 
             string configFile = null;
+            string keyFile = null;
             string cbPath = null;
             string cachePath = null;
 
+            bool? writeKeyFile = null;
             bool? verboseMode = null;
             bool? forceRemerge = null;
             bool? launchBuilder = null;
@@ -233,6 +229,15 @@ namespace CBLoader
                 { "ignore-part=", "Adds a part file to ignore.",
                     value => options.IgnoreParts.Add(value) },
                 "",
+                "Keyfile options:",
+                { "k|key-file=", "Uses the given keyfile.",
+                    value => setUniqueString(ref keyFile, "-k", value) },
+                { "r=", "Updates a keyfile at the given path. Implies -k.",
+                    value => {
+                        setUniqueString(ref keyFile, "-r", value);
+                        writeKeyFile = true;
+                    } },
+                "",
                 "Execution options:",
                 { "e|force-remerge", "Always regenerate merged rules file.",
                     value => forceRemerge = true },
@@ -260,9 +265,11 @@ namespace CBLoader
                     options.AddOptionFile(configFile);
 
             // Copy configuration options from console.
+            if (keyFile != null) options.KeyFile = keyFile;
             if (cbPath != null) options.CBPath = cbPath;
             if (cachePath != null) options.CachePath = cachePath;
 
+            if (writeKeyFile != null) options.WriteKeyFile = (bool) writeKeyFile;
             if (verboseMode != null) options.VerboseMode = (bool) verboseMode;
             if (forceRemerge != null) options.ForceRemerge = (bool) forceRemerge;
             if (launchBuilder != null) options.LaunchBuilder = (bool) launchBuilder;
@@ -275,6 +282,8 @@ namespace CBLoader
                     "CBLoader could not find an installation of Character Builder.\n" +
                     "Please specify its path with <CBPath>path/to/builder</CBPath> in the configuration " +
                     "or reinstall Character Builder.");
+            if (options.KeyFile == null)
+                options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
             if (options.PartDirectories.Count == 0 && options.LoadedConfigPath == null)
                 options.PartDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
 
@@ -297,7 +306,7 @@ namespace CBLoader
                 Utils.UpdateRegistry();
             if (options.CheckForUpdates)
                 fileManager.DoUpdates(options.ForceRemerge);
-            fileManager.ExtractAndMerge(options.ForceRemerge);
+            fileManager.MergeFiles(options.ForceRemerge);
             if (options.LaunchBuilder)
                 ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), fileManager.MergedPath);
         }
@@ -312,7 +321,7 @@ namespace CBLoader
 
             try
             {
-                Environment.SetEnvironmentVariable("CBLOADER", Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location));
+                Environment.SetEnvironmentVariable("CBLOADER", AppDomain.CurrentDomain.BaseDirectory);
                 main(args);
             }
             catch (OptionException e)

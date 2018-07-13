@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 
 namespace CBLoader
 {
@@ -130,12 +131,8 @@ namespace CBLoader
                 var progIdKey = cuClasses.CreateSubKey(uniqueId);
                 progIdKey.SetValue("", friendlyName);
                 progIdKey.SetValue("FriendlyTypeName", friendlyName);
-                progIdKey
-                    .CreateSubKey("shell").CreateSubKey("open").CreateSubKey("command")
-                    .SetValue("", $"\"{Path.GetFullPath(typeof(Utils).Assembly.Location)}\" {flags} \"%1\"");
-                progIdKey
-                    .CreateSubKey("CurVer")
-                    .SetValue("", uniqueId);
+                progIdKey.CreateSubKey("CurVer").SetValue("", uniqueId);
+                addAction(uniqueId, "open", $"\"{Path.GetFullPath(Assembly.GetEntryAssembly().Location)}\" {flags} \"%1\"");
             }
 
             {
@@ -164,8 +161,9 @@ namespace CBLoader
         {
             if (!IS_WINDOWS) return;
 
-            Log.Info("Setting file associations...");
-            Log.Debug();
+            Log.Info("Setting file associations.");
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
 
             createAssociation("CBLoader.dnd4e.1", ".dnd4e", "--",
                               "D&D Insider Character Builder file");
@@ -174,6 +172,10 @@ namespace CBLoader
             addAction("CBLoader.cbconfig.1", "Edit CBLoader Configuration", 
                       "notepad.exe \"%1\"");
             SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
+
+            stopwatch.Stop();
+            Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
+            Log.Debug();
         }
     }
 }

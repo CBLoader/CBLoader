@@ -94,7 +94,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PartMerger.cs" />
-    <Compile Include="CryptoUtils.cs" />
+    <Compile Include="CryptoInfo.cs" />
     <Compile Include="UpdateLog.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>

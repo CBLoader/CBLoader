@@ -24,7 +24,7 @@ namespace CBLoader
 			"</body></html>"
 		};
         public static bool ShowChangelog = true;
-		internal void CreateAndShow(List<FileInfo> customFiles)
+		internal void CreateAndShow(FileInfo[] customFiles)
 		{
 			this.parts = (
 				from f in customFiles

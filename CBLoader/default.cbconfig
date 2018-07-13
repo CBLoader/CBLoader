@@ -1,4 +1,5 @@
 <!-- This file contains the configuration for CBLoader. -->
+<!-- All file paths are relative to the folder this configuration file is in. -->
 <Settings>
   <!-- A list of folders to load .part files from. -->
   <Folders>
@@ -11,10 +12,14 @@
   </Ignore>
   
   <!-- Uncomment this to change the directory CBLoader stores its temporary files in. -->
-  <!-- <CachePath>Cache</CachePath> -->
+  <!-- <BasePath>Cache</BasePath> -->
   
   <!-- Uncomment this to set the directory Character Loader is in. -->
   <!-- <CharacterBuilderPath>C:\Program Files (x86)\Wizards of the Coast\Character Builder</CharacterBuilderPath> -->
+  
+  <!-- Set this to true to enable writing/updating a keyfile.
+       This is helpful in rare cases for making the Character Builder portable. -->
+  <WriteKeyFile>false</WriteKeyFile>
   
   <!-- Set this to true to enable additional debugging output. -->
   <VerboseMode>false</VerboseMode>

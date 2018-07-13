@@ -10,31 +10,84 @@ using System.Diagnostics;
 
 namespace CBLoader
 {
-    public class LastMergedFileInfo
+    [XmlType(Namespace = "http://cbloader.github.io/CBLoader/ns/MergeInfo/v1")]
+    [XmlRoot(Namespace = "http://cbloader.github.io/CBLoader/ns/MergeInfo/v1")]
+    public sealed class MergedFileInfo
     {
-        public string FileName { get; set; }
-        public DateTime LastTouched { get; set; }
+        [XmlAttribute] public string Filename;
+        [XmlAttribute] public DateTime LastModified;
+
+        public MergedFileInfo() { }
+        public MergedFileInfo(string filename, DateTime lastModified)
+        {
+            Filename = filename;
+            LastModified = lastModified;
+        }
+
+        public override bool Equals(object obj)
+        {
+            var info = obj as MergedFileInfo;
+            return info != null && Filename == info.Filename && LastModified == info.LastModified;
+        }
+        public override int GetHashCode() => 0; // We won't use this.
+    }
+
+    [XmlType(Namespace = "http://cbloader.github.io/CBLoader/ns/MergeInfo/v1")]
+    [XmlRoot(Namespace = "http://cbloader.github.io/CBLoader/ns/MergeInfo/v1")]
+    public sealed class MergeInfo
+    {
+        [XmlElement(IsNullable = false)]
+        public KeyStore EncryptionData;
+
+        [XmlArray(IsNullable = false)]
+        [XmlArrayItem(IsNullable = false)]
+        public List<MergedFileInfo> PartFiles;
+
+        [NonSerialized]
+        private HashSet<string> addedParts;
+
+        public bool SameMergeInfo(MergeInfo info)
+        {
+            return EncryptionData == info.EncryptionData && PartFiles.SequenceEqual(info.PartFiles);
+        }
+        public void AddFile(FileInfo info)
+        {
+            if (addedParts == null) {
+                if (PartFiles != null)
+                    throw new Exception("Do not call AddFiles on a MergeInfo acquired via serialization.");
+                PartFiles = new List<MergedFileInfo>();
+                addedParts = new HashSet<string>();
+            }
+
+            if (!info.Exists) throw new Exception($"{info.FullName} does not exist!");
+            
+            if (addedParts.Contains(info.FullName)) return;
+            addedParts.Add(info.FullName);
+            PartFiles.Add(new MergedFileInfo(info.FullName, info.LastWriteTime));
+        }
+        public void AddFile(string filename) => AddFile(new FileInfo(filename));
+        public void DoMerge(Action<string> callback)
+        {
+            foreach (var file in PartFiles) callback.Invoke(file.Filename);
+        }
     }
 
     /// <summary>
     /// Manages interactions with the files on the disc
     /// </summary>
-    internal class FileManager
+    internal sealed class FileManager
     {
-        public const string ENCRYPTED_FILENAME = "combined.dnd40.encrypted";
         private const string GENERAL_EXTRACT_ERROR = 
             "Unknown error extracting combined.dnd40.encrypted. " +
             "Please confirm that the .encrypted file exists, that you have enough disk space and you have appropriate permissions.";
-        private static XmlSerializer SERIALIZER = new XmlSerializer(typeof(List<LastMergedFileInfo>));
+        private static XmlSerializer SERIALIZER = new XmlSerializer(typeof(MergeInfo));
 
         private readonly LoaderOptions options;
         private readonly CryptoInfo cryptoInfo;
 
-        private List<LastMergedFileInfo> currentlyMerged = new List<LastMergedFileInfo>();
-        
+        public string EncryptedPath { get => Path.Combine(options.CBPath, "combined.dnd40.encrypted"); }
         public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
-        public string MergedFileInfo { get => Path.Combine(options.CachePath, "cbloader.merged"); }
-        public string CoreFileName { get => Path.Combine(options.CachePath, "combined.dnd40.main"); }
+        public string MergedStatePath { get => Path.Combine(options.CachePath, "merge_state.xml"); }
         
         public FileManager(LoaderOptions options, CryptoInfo cryptoInfo)
         {
@@ -43,27 +96,65 @@ namespace CBLoader
 
             if (!Directory.Exists(options.CachePath))
                 Directory.CreateDirectory(options.CachePath);
-
-            if (File.Exists(MergedFileInfo))
-                using (StreamReader sr = new StreamReader(MergedFileInfo, Encoding.Default))
-                    currentlyMerged = (List<LastMergedFileInfo>) SERIALIZER.Deserialize(sr);
         }
-        
+
+        private static FileInfo[] getFromDirectory(string fn, string glob) =>
+            Directory.Exists(fn) ? new DirectoryInfo(fn).GetFiles(glob) : new FileInfo[0];
+        private static FileInfo[] collectFromDirectories(IEnumerable<string> directories, params string[] glob) =>
+            directories.SelectMany(dir => glob.SelectMany(x => getFromDirectory(dir, x))).OrderBy(x => x.Name).ToArray();
+
         /// <summary>
-        /// If necessary extracts the unencrypted data from the zip file. And merges the .main and .part file(s) into the
-        /// final file name. 
-        /// <param name="forced">Indicates whether the extract and merge should hapen regardless of the state of the filesystem.
-        /// If this is false, the encrypted file will only be extracted if it is updated and the .main and .part files will only
-        /// be merged if one has been touched. If forced is true, the files will be re-extracted and remerged regardless</param>
+        /// Merges the combined.dnd4e.encrypted and .part file(s) into the final combined output
+        /// file. If any have changed, they will be remerged.
+        /// <param name="forced">Whether to ignore the current merge state.</param>
         /// </summary>
-        public void ExtractAndMerge(bool forced)
+        public void MergeFiles(bool forced)
         {
             Log.Info("Updating merged game data.");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            ExtractFile(forced);
-            MergeFiles(forced);
+            Log.Debug(" - Collecting .part files");
+            MergeInfo currentMergeInfo = new MergeInfo();
+            currentMergeInfo.EncryptionData = cryptoInfo.keyStore;
+            currentMergeInfo.AddFile(EncryptedPath);
+            foreach (var part in collectFromDirectories(options.PartDirectories, "*.part", "*.encrypted"))
+                currentMergeInfo.AddFile(part);
+
+            Log.Debug(" - Checking merge data file");
+            var doMerge = true;
+            try
+            {
+                using (var sr = new StreamReader(File.Open(MergedStatePath, FileMode.Open), Encoding.UTF8))
+                {
+                    var mergeInfo = (MergeInfo) SERIALIZER.Deserialize(sr);
+                    if (mergeInfo.SameMergeInfo(currentMergeInfo)) {
+                        Log.Debug(" - Same files already merged.");
+                        doMerge = false;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Debug("   - Error occurred reading merge data file.", e);
+                try
+                {
+                    File.Delete(MergedStatePath);
+                }
+                catch (Exception e2)
+                {
+                    Log.Debug("   - Error occurred deleting merge data file.", e2);
+                }
+            }
+
+            if (doMerge)
+            {
+                MergeFiles(currentMergeInfo);
+
+                Log.Debug(" - Writing merge data file.");
+                using (var sw = new StreamWriter(File.Open(MergedStatePath, FileMode.Create), Encoding.UTF8))
+                    SERIALIZER.Serialize(sw, currentMergeInfo);
+            }
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
@@ -71,107 +162,31 @@ namespace CBLoader
         }
 
         /// <summary>
-        /// Check indexes for new files.
-        /// </summary>
-        /// <param name="forced"></param>
-        public bool CheckIndexes(bool forced)
-        {
-            List<FileInfo> Indexes = options.PartDirectories.SelectMany(
-                GetIndexesFromDirectory).OrderBy(f => f.Name).ToList();
-            bool NewFiles = false;
-
-            System.Net.WebClient wc = new System.Net.WebClient();
-            foreach (FileInfo index in Indexes)
-            {
-                NewFiles = CheckIndex(forced, NewFiles, wc, index);
-            }
-            return NewFiles;
-        }
-
-        /// <summary>
-        /// Check an individual index for updates. Refactored out of CheckIndexes for the ability to recurse.
-        /// </summary>
-        private bool CheckIndex(bool forced, bool NewFiles, System.Net.WebClient wc, FileInfo index)
-        {
-            XDocument PartIndex = XDocument.Load(index.FullName);
-            CheckMetaData(index, PartIndex);
-            foreach (XElement Part in PartIndex.Root.Elements("Part"))
-            {
-                try
-                {
-                    string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
-                    if (options.IsPartIgnored(Part.Element("Filename").Value.ToLower().Trim()))
-                        continue;
-                    if (!File.Exists(filename) || forced)
-                    {
-                        Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
-                        wc.DownloadFile(Part.Element("PartAddress").Value, filename);
-                        if (Path.GetExtension(filename) == ".index")
-                            CheckIndex(forced, NewFiles, wc, new FileInfo(filename));
-                        else
-                            CheckMetaData(new FileInfo(filename), XDocument.Load(filename));
-                        NewFiles = true;
-                    }
-                }
-                catch (System.Net.WebException v)
-                {
-                    if (v.ToString().Contains("is denied"))
-                        Log.Error("CBLoader could not save the updates to disk.\n\tCheck the index file is somewhere you have write permissions.\n\tWe recommend the My Documents\\ddi\\CBLoader folder", v);
-                }
-            }
-            foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
-            {
-                string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
-                if (File.Exists(filename))
-                    File.Delete(filename);
-            }
-            return NewFiles;
-        }
-
-        /// <summary>
-        /// Merges the .main file with all known .part files
-        /// <param name="forced">if true, the .main and .part files will always be merged. Otherwise they are only merged if
-        /// one has been touched.</param>
-        /// </summary>
-        private void MergeFiles(bool forced)
-        {
-            if (!File.Exists(CoreFileName))
-                throw new Exception("Error, could not find file: " + CoreFileName);
-
-            List<FileInfo> customFiles = options.PartDirectories.SelectMany(
-                GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
-            customFiles.RemoveAll(f => options.IsPartIgnored(f.Name.ToLower().Trim()));
-
-            // bail out if nothing is modified
-            if (!forced && File.Exists(MergedPath) && currentlyMerged.Count > 0)
-            {
-                if (customFiles.TrueForAll(FileWasMerged) && currentlyMerged.TrueForAll(MergedFileExists(customFiles)))
-                    return;
-            }
-
-            // construct the custom rules file
-            MergeFiles(customFiles);
-        }
-
-        /// <summary>
         /// Merges the specified files
         /// </summary>
-        private void MergeFiles(List<FileInfo> customFiles)
+        private void MergeFiles(MergeInfo mergeInfo)
         {
             var merger = new PartMerger("D&D4E");
-            Log.Info($" - Adding rules from core file");
-            merger.ProcessDocument(CoreFileName);
-            foreach (var file in customFiles)
+            // TODO: Check for an already patched combined.dnd40.encrypted
+            mergeInfo.DoMerge(filename =>
             {
-                Log.Info($" - Adding rules from {file}");
-                merger.ProcessDocument(file.FullName);
-                updateMergedList(file.FullName, file.LastWriteTime);
-            }
-            Log.Info($" - Saving rules data to disk");
+                Log.Info($" - Adding rules from {Path.GetFileName(filename)}");
+                switch (Path.GetExtension(filename).ToLower())
+                {
+                    case ".encrypted":
+                        using (var stream = cryptoInfo.OpenEncryptedFile(filename))
+                            merger.ProcessDocument(stream);
+                        break;
+                    case ".part":
+                        merger.ProcessDocument(filename);
+                        break;
+                    default:
+                        Log.Warn($" - Attempt to merge file with unknown extension: {filename}");
+                        break;
+                }
+            });
+            Log.Info(" - Saving rules data to disk");
             cryptoInfo.SaveRulesFile(merger.MakeDocument(), MergedPath);
-            Log.Trace($" - Updating merged list.");
-            using (StreamWriter sw = new StreamWriter(MergedFileInfo, false))
-                SERIALIZER.Serialize(sw, currentlyMerged);
         }
 
         private bool CheckMetaData(FileInfo fi, XDocument customContent)
@@ -215,108 +230,67 @@ namespace CBLoader
             return false;
         }
 
-        private void updateMergedList(String fileName, DateTime lasttouched)
-        {
-            int index = currentlyMerged.FindIndex(lmf => lmf.FileName == fileName);
-            LastMergedFileInfo lmfi = new LastMergedFileInfo()
-                {
-                    FileName = fileName,
-                    LastTouched = lasttouched,
-                };
-            if (index == -1)
-                currentlyMerged.Add(lmfi);
-            else
-                currentlyMerged[index] = lmfi;
-        }
-        
         /// <summary>
-        /// Writing this out via an xmlwriter, XDocument.Save overrites important line-ending information
+        /// Check indexes for new files.
         /// </summary>
-        /// <param name="xw"></param>
-        /// <param name="parent"></param>
-        private void SaveDocument(XmlWriter xw, XElement parent)
+        /// <param name="forced"></param>
+        public bool CheckIndexes(bool forced)
         {
-            xw.WriteStartElement(parent.Name.LocalName);
-            foreach (XAttribute xa in parent.Attributes())
-                xw.WriteAttributeString(xa.Name.LocalName, xa.Value);
-            foreach (XNode xe in parent.Nodes())
+            var indexes = collectFromDirectories(options.PartDirectories, "*.index");
+            var newFiles = false;
+
+            System.Net.WebClient wc = new System.Net.WebClient();
+            foreach (FileInfo index in indexes)
             {
-                if (xe.NodeType == System.Xml.XmlNodeType.Text)
-                {
-                    XText xt = (XText)xe;
-                    if (!String.IsNullOrEmpty(xt.Value))
-                        xw.WriteString(xt.Value.Replace('\n', '\r'));
-                }
-                else if (xe.NodeType == System.Xml.XmlNodeType.Element)
-                {
-                    XElement el = (XElement)xe;
-                    SaveDocument(xw, el);
-                }
+                newFiles = CheckIndex(forced, newFiles, wc, index);
             }
-            xw.WriteEndElement();
-        }
-
-        private static FileInfo[] GetPartsFromDirectory(string fn)
-        {
-            if (Directory.Exists(fn))
-                return new DirectoryInfo(fn).GetFiles("*.part");
-            else
-                return new FileInfo[0];
-        }
-
-        private static FileInfo[] GetIndexesFromDirectory(string fn)
-        {
-            if (Directory.Exists(fn))
-                return new DirectoryInfo(fn).GetFiles("*.index");
-            else
-                return new FileInfo[0];
-        }
-
-        private static Predicate<LastMergedFileInfo> MergedFileExists(List<FileInfo> customFiles)
-        {
-            return lmf => customFiles.Any(fi => fi.FullName.ToLower() == lmf.FileName.ToLower());
-        }
-
-        private bool FileWasMerged(FileInfo fi)
-        {
-            LastMergedFileInfo lmf = currentlyMerged.FirstOrDefault(lmfi => lmfi.FileName.ToLower() == fi.FullName.ToLower());
-            if (lmf != null)
-                return lmf.LastTouched.Equals(fi.LastWriteTime) || lmf.LastTouched == DateTime.MinValue;
-            else return false;
+            return newFiles;
         }
 
         /// <summary>
-        /// Extracts the .encrypted file into a .main file and creates a .part file if necessary
-        /// <param name="forced">If true, the .encrypted file will always be extracted. Otherwise it is only extracted
-        /// if it is updated.</param>
+        /// Check an individual index for updates. Refactored out of CheckIndexes for the ability to recurse.
         /// </summary>
-        private void ExtractFile(bool forced)
+        private bool CheckIndex(bool forced, bool NewFiles, System.Net.WebClient wc, FileInfo index)
         {
-            var rulesFile = Path.Combine(options.CBPath, ENCRYPTED_FILENAME);
-            if (forced || !File.Exists(CoreFileName) || File.GetLastWriteTime(rulesFile) > File.GetLastWriteTime(CoreFileName))
+            XDocument PartIndex = XDocument.Load(index.FullName);
+            CheckMetaData(index, PartIndex);
+            foreach (XElement Part in PartIndex.Root.Elements("Part"))
             {
-                Log.Info(" - Extracting " + CoreFileName);
                 try
                 {
-                    using (StreamReader sr = new StreamReader(cryptoInfo.OpenEncryptedFile(rulesFile)))
-                    using (StreamWriter sw = new StreamWriter(CoreFileName))
+                    string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                    if (options.IsPartIgnored(Part.Element("Filename").Value.ToLower().Trim()))
+                        continue;
+                    if (!File.Exists(filename) || forced)
                     {
-                        string xmlData = sr.ReadToEnd();
-                        sw.Write(xmlData);
+                        Log.Info("Downloading " + Part.Element("Filename").Value + " from " + index.Name);
+                        wc.DownloadFile(Part.Element("PartAddress").Value, filename);
+                        if (Path.GetExtension(filename) == ".index")
+                            CheckIndex(forced, NewFiles, wc, new FileInfo(filename));
+                        else
+                            CheckMetaData(new FileInfo(filename), XDocument.Load(filename));
+                        NewFiles = true;
                     }
                 }
-                catch (Exception e)
+                catch (System.Net.WebException v)
                 {
-                    throw new Exception(GENERAL_EXTRACT_ERROR, e);
+                    if (v.ToString().Contains("is denied"))
+                        Log.Error("CBLoader could not save the updates to disk.\n\tCheck the index file is somewhere you have write permissions.\n\tWe recommend the My Documents\\ddi\\CBLoader folder", v);
                 }
             }
+            foreach (XElement Part in PartIndex.Root.Elements("Obsolete"))
+            {
+                string filename = Path.Combine(index.Directory.FullName, Part.Element("Filename").Value);
+                if (File.Exists(filename))
+                    File.Delete(filename);
+            }
+            return NewFiles;
         }
-        
+
         public bool DoUpdates(bool forced)
         {
-            List<FileInfo> customFiles = options.PartDirectories.SelectMany(
-                GetPartsFromDirectory).OrderBy(f => f.Name).ToList();
-            bool newUpdates = false;
+            var customFiles = collectFromDirectories(options.PartDirectories, "*.part");
+            var newUpdates = false;
             foreach (FileInfo fi in customFiles)
             {
                 XDocument customContent = (XDocument)XDocument.Load(fi.FullName, LoadOptions.PreserveWhitespace);
@@ -327,5 +301,5 @@ namespace CBLoader
                 new UpdateLog().CreateAndShow(customFiles);
             return newUpdates;
         }
-   }
+    }
 }
