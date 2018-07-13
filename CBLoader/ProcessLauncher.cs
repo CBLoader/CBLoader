@@ -93,90 +93,28 @@ namespace CBLoader
             assembly.Write(patchedData, settings);
             callback.AddOverride(assembly.Name, patchedData.ToArray());
         }
-        
-        private static void StripExceptionHandlers(MethodDef method, HashSet<string> handlers)
-        {
-            if (method == null || method.Body == null) return;
-            if (method.Body.Instructions[method.Body.Instructions.Count - 1].OpCode != OpCodes.Ret) return;
 
-            // Check if the exception handlers in the method match the pattern.
-            foreach (var exception in method.Body.ExceptionHandlers.Where(exception =>
-                exception.HandlerType == ExceptionHandlerType.Catch &&
-                exception.CatchType.FullName == typeof(Exception).FullName
-            ))
-            {
-                if (exception.HandlerEnd == null) continue;
-                var handlerEnd = method.Body.Instructions.IndexOf(exception.HandlerEnd);
-                if (handlerEnd < 2) continue;
-
-                // Check if the opcodes in the method match the pattern.
-                if (method.Body.Instructions[handlerEnd - 2].OpCode != OpCodes.Call ||
-                    method.Body.Instructions[handlerEnd - 1].OpCode != OpCodes.Throw) return;
-                var excCall = (IMethod) method.Body.Instructions[handlerEnd - 2].Operand;
-                if (!handlers.Contains(excCall.FullName)) return;
-
-                // If so, remove the instruction handler.
-                var handlerStart = method.Body.Instructions.IndexOf(exception.HandlerStart);
-                var handlerCount = handlerEnd - handlerStart;
-                for (int i = 0; i < handlerCount; i++)
-                    method.Body.Instructions.RemoveAt(handlerStart);
-                method.Body.ExceptionHandlers.Remove(exception);
-
-                return;
-            }
-        }
-        private static void StripExceptionHandlers(AssemblyDef assembly, HashSet<string> handlers)
-        {
-            foreach (var module in assembly.Modules)
-                foreach (var type in module.Types)
-                {
-                    foreach (var method in type.Methods) StripExceptionHandlers(method, handlers);
-                    foreach (var property in type.Properties)
-                    {
-                        foreach (var method in property.SetMethods) StripExceptionHandlers(method, handlers);
-                        foreach (var method in property.GetMethods) StripExceptionHandlers(method, handlers);
-                    }
-                    foreach (var ev in type.Events)
-                    {
-                        StripExceptionHandlers(ev.AddMethod, handlers);
-                        StripExceptionHandlers(ev.InvokeMethod, handlers);
-                        StripExceptionHandlers(ev.RemoveMethod, handlers);
-                        foreach (var method in ev.OtherMethods) StripExceptionHandlers(method, handlers);
-                    }
-                }
-        }
-        private static HashSet<string> FindExceptionHandlers(AssemblyDef assembly)
+        private static void DisableExceptionHandlers(AssemblyDef assembly)
         {
             var unhandledExceptionDef =
                 assembly.ManifestModule.Find("SmartAssembly.SmartExceptionsCore.UnhandledException", false);
-
-            var set = new HashSet<string>();
+            
             foreach (var method in unhandledExceptionDef.Methods)
-                if (method.Parameters.Count > 0 && method.Parameters[0].Type.FullName == typeof(Exception).FullName)
+            {
+                var exception_ty = typeof(Exception).FullName;
+                if (method.Parameters.Count > 0 &&
+                    method.Parameters[0].Type.FullName == exception_ty &&
+                    method.ReturnType.FullName == exception_ty)
                 {
-                    set.Add(method.FullName);
+                    Log.Trace($"     - Disabling {method.FullName}");
+                    method.Body = new CilBody();
+                    method.Body.MaxStack = 1;
+                    method.Body.Instructions.Add(OpCodes.Ldarg_0.ToInstruction());
+                    method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
                 }
-            return set;
+            }
         }
-
-        private static void RemoveTitleCallHome(AssemblyDef assembly)
-        {
-            var imp = new Importer(assembly.ManifestModule);
-            var type = assembly.ManifestModule.Find("Character_Builder.TitlePage", false);
-
-            // Replace the URI the update page (I presume) is loaded from with an non-existing resource.
-            // We can use this later to put our own update information, I guess.
-            var property = type.FindProperty("CBInfoUrl");
-            var method = property.GetMethod;
-
-            method.Body.Instructions.Clear();
-            method.Body.Instructions.InsertRange(0, new Instruction[] {
-                OpCodes.Ldstr.ToInstruction("pack://application:,,,/NonExistantResource.html"),
-                OpCodes.Ret.ToInstruction(),
-            });
-        }
-
-        private static void PatchEntryPointHandler(AssemblyDef assembly)
+        private static void ReplaceEntryPointHandler(AssemblyDef assembly)
         {
             var imp = new Importer(assembly.ManifestModule);
             var method = assembly.ManifestModule.EntryPoint;
@@ -203,6 +141,22 @@ namespace CBLoader
             });
             exception.TryEnd = method.Body.Instructions[handlerStart];
             exception.HandlerStart = method.Body.Instructions[handlerStart];
+        }
+
+        private static void RemoveTitleCallHome(AssemblyDef assembly)
+        {
+            var imp = new Importer(assembly.ManifestModule);
+            var type = assembly.ManifestModule.Find("Character_Builder.TitlePage", false);
+
+            // Replace the URI the update page (I presume) is loaded from with an non-existing resource.
+            // We can use this later to put our own update information, I guess.
+            var property = type.FindProperty("CBInfoUrl");
+            var method = property.GetMethod;
+
+            method.Body = new CilBody();
+            method.Body.MaxStack = 1;
+            method.Body.Instructions.Add(OpCodes.Ldstr.ToInstruction("pack://application:,,,/NonExistantResource.html"));
+            method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
         }
 
         private const string FIND_RULES_ELEMENT = 
@@ -247,17 +201,12 @@ namespace CBLoader
         {
             var assembly = LoadAssembly(cbDirectory, "CharacterBuilder.exe");
 
-            Log.Debug("   - Finding SmartAssembly exception handler methods.");
-            var handlers = FindExceptionHandlers(assembly);
-
-            Log.Debug("   - Stripping SmartAssembly exception handler methods.");
-            StripExceptionHandlers(assembly, handlers);
+            Log.Debug("   - Replacing SmartAssembly exception handler.");
+            DisableExceptionHandlers(assembly);
+            ReplaceEntryPointHandler(assembly);
 
             Log.Debug("   - Preventing initial attempt to load page on Wizards website.");
             RemoveTitleCallHome(assembly);
-
-            Log.Debug("   - Replacing SmartAssembly root exception handler.");
-            PatchEntryPointHandler(assembly);
 
             Log.Debug("   - Removing D&D Compendium links.");
             RemoveCompendiumLinks(assembly);
