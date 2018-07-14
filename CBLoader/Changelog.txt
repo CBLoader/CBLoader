@@ -1,4 +1,12 @@
 ﻿v1.4.0
+* CBLoader is no longer installed into the same directory as the Character Builder.
+  Rather, it is launched on its own and can find an installed copy.
+* Added a new merge algorithm that merges .part files much much faster.
+* Added many options to configuration files. See default.cbconfig for details.
+* Added an "Edit CBLoader Configuration" action to the right click menu of .cbconfig files.
+* Added a new index version format, reducing the number of web requests needed for an update.
+* New command line interface using Mono.Options. For details, use .\CBLoader --help
+* Updated parts are now shown on the title page of the Character Builder itself.
 
 v1.3.2
 * The changelog now has html folding magic.  Only the latest three changes are displayed at load.  
