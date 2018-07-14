@@ -9,6 +9,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Security.Permissions;
 
 namespace CBLoader
 {
@@ -31,6 +32,19 @@ namespace CBLoader
                 list.Insert(start, item);
                 start++;
             }
+        }
+    }
+
+    /// <summary>
+    /// Normally objects with MarshalByRefObject time out after 6 minutes (!!). This prevents that
+    /// from happening. Since we only ever create two remote objects, this isn't an issue.
+    /// </summary>
+    internal abstract class PersistantRemoteObject : MarshalByRefObject
+    {
+        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.Infrastructure)]
+        public override object InitializeLifetimeService()
+        {
+            return null;
         }
     }
 

@@ -13,7 +13,7 @@ using System.Threading;
 
 namespace CBLoader
 {
-    internal sealed class TargetDomainCallback : MarshalByRefObject
+    internal sealed class TargetDomainCallback : PersistantRemoteObject
     {
         private string cbDirectory;
         private Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();

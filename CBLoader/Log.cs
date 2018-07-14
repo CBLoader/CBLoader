@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace CBLoader
 {
-    internal class LogRemoteReceiver : MarshalByRefObject
+    internal class LogRemoteReceiver : PersistantRemoteObject
     {
         private StreamWriter outStream;
         internal string LogFileLocation { get; private set; }
