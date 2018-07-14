@@ -406,8 +406,9 @@ namespace CBLoader
         {
             using (var crypt = GetXmlEncryptingStream(File.Open(filename, FileMode.Create)))
             {
-                var bytes = Encoding.UTF8.GetBytes(FixXmlHash(document.ToString(SaveOptions.DisableFormatting)));
-                crypt.Write(bytes, 0, bytes.Length);
+                var sw = new StreamWriter(crypt, Encoding.UTF8);
+                sw.Write(FixXmlHash(document.ToString(SaveOptions.DisableFormatting)));
+                sw.Flush();
             }
         }
 

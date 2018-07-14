@@ -316,7 +316,6 @@ namespace CBLoader
         private void MergeFiles(MergeInfo mergeInfo)
         {
             var merger = new PartMerger("D&D4E");
-            // TODO: Check for an already patched combined.dnd40.encrypted
             mergeInfo.DoMerge(filename =>
             {
                 Log.Info($" - Adding rules from {Path.GetFileName(filename)}");
