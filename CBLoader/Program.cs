@@ -5,57 +5,74 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Xml.Serialization;
 
 namespace CBLoader
 {
+    public sealed class PartFolders
+    {
+        [XmlAttribute] public bool NoUpdate;
+        [XmlIgnore] public bool NoUpdateSpecified;
+
+        [XmlText] public string Path;
+
+        public PartFolders() { }
+        public PartFolders(string path)
+        {
+            NoUpdate = false;
+            NoUpdateSpecified = false;
+            Path = path;
+        }
+    }
+
     [XmlRoot("Settings", IsNullable = false)]
     public sealed class OptionsFileSchema
     {
         // Current list options
         [XmlArrayItem("Custom", IsNullable = false)]
-        public string[] Folders { get; set; }
+        public PartFolders[] Folders;
         [XmlArrayItem("Part", IsNullable = false)]
-        public string[] Ignore { get; set; }
+        public string[] Ignore;
 
         // Current string options
-        public string KeyFile { get; set; }
-        public string BasePath { get; set; }
-        public string CharacterBuilderPath { get; set; }
+        public string KeyFile;
+        public string BasePath;
+        public string CharacterBuilderPath;
 
         // Current boolean options
-        public bool WriteKeyFile { get; set; }
-        public bool VerboseMode { get; set; }
-        public bool AlwaysRemerge { get; set; }
-        public bool LaunchBuilder { get; set; }
-        public bool CheckForUpdates { get; set; }
-        public bool UpdateFirst { get; set; }
-        public bool SetFileAssociations { get; set; }
+        public bool WriteKeyFile;
+        public bool VerboseMode;
+        public bool AlwaysRemerge;
+        public bool LaunchBuilder;
+        public bool CheckForUpdates;
+        public bool UpdateFirst;
+        public bool SetFileAssociations;
 
-        [XmlIgnore] public bool WriteKeyFileSpecified { get; set; }
-        [XmlIgnore] public bool VerboseModeSpecified { get; set; }
-        [XmlIgnore] public bool AlwaysRemergeSpecified { get; set; }
-        [XmlIgnore] public bool LaunchBuilderSpecified { get; set; }
-        [XmlIgnore] public bool CheckForUpdatesSpecified { get; set; }
-        [XmlIgnore] public bool UpdateFirstSpecified { get; set; }
-        [XmlIgnore] public bool SetFileAssociationsSpecified { get; set; }
+        [XmlIgnore] public bool WriteKeyFileSpecified;
+        [XmlIgnore] public bool VerboseModeSpecified;
+        [XmlIgnore] public bool AlwaysRemergeSpecified;
+        [XmlIgnore] public bool LaunchBuilderSpecified;
+        [XmlIgnore] public bool CheckForUpdatesSpecified;
+        [XmlIgnore] public bool UpdateFirstSpecified;
+        [XmlIgnore] public bool SetFileAssociationsSpecified;
 
         // Deprecated options
-        public bool FastMode { get; set; }
-        public bool NewMergeLogic { get; set; }
-        public bool ShowChangelog { get; set; }
+        public bool FastMode;
+        public bool NewMergeLogic;
+        public bool ShowChangelog;
 
-        [XmlIgnore] public bool FastModeSpecified { get; set; }
-        [XmlIgnore] public bool NewMergeLogicSpecified { get; set; }
-        [XmlIgnore] public bool ShowChangelogSpecified { get; set; }
+        [XmlIgnore] public bool FastModeSpecified;
+        [XmlIgnore] public bool NewMergeLogicSpecified;
+        [XmlIgnore] public bool ShowChangelogSpecified;
     }
 
     internal sealed class LoaderOptions
     {
         private static readonly XmlSerializer SERIALIER = new XmlSerializer(typeof(OptionsFileSchema));
 
-        public List<string> PartDirectories = new List<string>();
+        public List<string> MergeDirectories = new List<string>();
+        public List<string> UpdateDirectories = new List<string>();
+
         public List<string> IgnoreParts = new List<string>();
         public List<string> ExecArgs = new List<string>();
 
@@ -77,6 +94,12 @@ namespace CBLoader
         public bool UpdateFirst = false;
         public bool SetFileAssociations = false;
 
+        public void AddPath(string dir, bool update = true)
+        {
+            MergeDirectories.Add(dir);
+            if (update) UpdateDirectories.Add(dir);
+        }
+
         private void deprecatedCheck(string filename, bool exists, string tag, string extra = null)
         {
             if (!exists) return;
@@ -94,7 +117,10 @@ namespace CBLoader
             if (LoadedConfigPath != null)
                 throw new Exception("Internal error: Attempted to load two configuration files.");
 
-            if (data.Folders != null) PartDirectories.AddRange(data.Folders.Select(x => processPath(configRoot, x)));
+            if (data.Folders != null)
+                foreach (var folder in data.Folders)
+                    AddPath(processPath(configRoot, folder.Path),
+                            !folder.NoUpdateSpecified || !folder.NoUpdate);
             if (data.Ignore != null) IgnoreParts.AddRange(data.Ignore.Select(x => x.Trim()));
 
             if (data.KeyFile != null) KeyFile = processPath(configRoot, data.KeyFile);
@@ -228,7 +254,7 @@ namespace CBLoader
                 { "cb-path=", "Sets where character builder is installed.",
                     value => setUniqueString(ref cbPath, "--cb-path", value) }, 
                 { "f|folder=", "Adds a directory to search for custom rules in.",
-                    value => options.PartDirectories.Add(value) },
+                    value => options.AddPath(value) },
                 { "ignore-part=", "Adds a part file to ignore.",
                     value => options.IgnoreParts.Add(value) },
                 "",
@@ -295,8 +321,8 @@ namespace CBLoader
             if (options.KeyFile == null) options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
 
             // Default part directory.
-            if (options.PartDirectories.Count == 0 && options.LoadedConfigPath == null)
-                options.PartDirectories.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
+            if (options.MergeDirectories.Count == 0 && options.UpdateDirectories.Count == 0 && options.LoadedConfigPath == null)
+                options.AddPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
             
             // Update first anyway if LaunchBuilder isn't set -- we don't need this optimization.
             if (!options.LaunchBuilder) options.UpdateFirst = true;

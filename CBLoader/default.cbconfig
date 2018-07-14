@@ -3,7 +3,8 @@
 <Settings>
   <!-- A list of folders to load .part files from. -->
   <Folders>
-    <Custom>Custom</Custom>
+    <!-- NoUpdate can be set per-folder to disable updating for only it. -->
+    <Custom NoUpdate="false">Custom</Custom>
   </Folders>
   
   <!-- A list of part files to ignore. -->

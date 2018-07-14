@@ -261,7 +261,7 @@ namespace CBLoader
             MergeInfo currentMergeInfo = new MergeInfo();
             currentMergeInfo.EncryptionData = cryptoInfo.keyStore;
             currentMergeInfo.AddFile(EncryptedPath);
-            foreach (var part in collectFromDirectories(options.PartDirectories, "*.part"))
+            foreach (var part in collectFromDirectories(options.MergeDirectories, "*.part"))
                 currentMergeInfo.AddFile(part);
             
             var doMerge = true;
@@ -477,8 +477,8 @@ namespace CBLoader
 
                 var wc = new WebClient();
                 var uc = new UpdateChecker(wc);
-                var customFiles = collectFromDirectories(options.PartDirectories, "*.part");
-                var indexes = collectFromDirectories(options.PartDirectories, "*.index");
+                var customFiles = collectFromDirectories(options.UpdateDirectories, "*.part");
+                var indexes = collectFromDirectories(options.UpdateDirectories, "*.index");
 
                 var obsoleteList = new HashSet<string>();
                 foreach (var fi in indexes)
