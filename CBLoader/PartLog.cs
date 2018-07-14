@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security;
 using System.Text;
 
@@ -6,8 +8,6 @@ namespace CBLoader
 {
     internal sealed class PartLog
     {
-        // TODO: Show changelogs
-
         private int unqiueId = 1;
         private string createId() => $"part_id_{unqiueId++}";
 
@@ -31,9 +31,25 @@ namespace CBLoader
             if (status.wasUpdated) return "<b>(Updated)</b> ";
             return "";
         }
+        private string renderChangelog(PartStatus status)
+        {
+            if (status.Changelog == null) return "<ul><li><i>No changelog available</i></li></ul>";
+
+            var sb = new StringBuilder();
+            var split = status.Changelog.Split('\n');
+            Array.Reverse(split);
+            foreach (var line in split.Select(x => x.Trim()).Where(x => x != ""))
+                sb.Append($"<li>{Escape(line)}</li>");
+            return $"<ul>{sb}</ul>";
+        }
         private void appendPart(StringBuilder sb, PartStatus status)
         {
-            sb.Append($"<li>{pickTarget(status)}{Escape(status.Name)}{Escape(versionString(status))}</li>");
+            var id = createId();
+            sb.Append($@"<li>
+                <a id=""{id}_button"" href=""#{id}"" onClick=""showHideChangelog('{id}'); return false;"">+</a>
+                {pickTarget(status)}{Escape(status.Name)}{Escape(versionString(status))}
+                <span id=""{id}_changelog"" style=""display: none;"">{renderChangelog(status)}</span>
+            </li>");
         }
 
         public void AddModule(PartStatus status)
@@ -68,7 +84,24 @@ namespace CBLoader
 					background-position: right top;
 					background-attachment: fixed;
                 }
+                a {
+                    /* Keep the size of the button consistant between its two states. */
+                    font-family: 'Lucida Console', 'Lucida Sans Typewriter', monaco, 'Bitstream Vera Sans Mono', monospace;
+                }
             </style>
+            <script>
+                function showHideChangelog(id) {
+                    button = document.getElementById(id + '_button');
+                    changelog = document.getElementById(id + '_changelog');
+                    if (button.innerHTML == '+') {
+                        changelog.style.display = 'block';
+                        button.innerHTML = '-';
+                    } else {
+                        changelog.style.display = 'none';
+                        button.innerHTML = '+';
+                    }
+                }
+            </script>
         ";
         public string Generate() => $@"<html>
             <head>{HEAD_HTML}</head>
