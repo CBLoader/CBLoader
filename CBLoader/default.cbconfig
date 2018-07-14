@@ -36,4 +36,9 @@
   
   <!-- Set this to false to disable associating CBLoader with .dnd4e and .cbconfig on boot. -->
   <SetFileAssociations>true</SetFileAssociations>
+  
+  <!-- The following options are meant for development of homebrew rules files. -->
+  <LaunchBuilder>true</LaunchBuilder>
+  <DumpTemporaryFiles>false</DumpTemporaryFiles>
+  <CreateUpdateIndexFiles>false</CreateUpdateIndexFiles>
 </Settings>

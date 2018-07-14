@@ -47,6 +47,8 @@ namespace CBLoader
         public bool CheckForUpdates;
         public bool UpdateFirst;
         public bool SetFileAssociations;
+        public bool DumpTemporaryFiles;
+        public bool CreateUpdateIndexFiles;
 
         [XmlIgnore] public bool WriteKeyFileSpecified;
         [XmlIgnore] public bool VerboseModeSpecified;
@@ -55,6 +57,8 @@ namespace CBLoader
         [XmlIgnore] public bool CheckForUpdatesSpecified;
         [XmlIgnore] public bool UpdateFirstSpecified;
         [XmlIgnore] public bool SetFileAssociationsSpecified;
+        [XmlIgnore] public bool DumpTemporaryFilesSpecified;
+        [XmlIgnore] public bool CreateUpdateIndexFilesSpecified;
 
         // Deprecated options
         public bool FastMode;
@@ -93,6 +97,8 @@ namespace CBLoader
         public bool CheckForUpdates = true;
         public bool UpdateFirst = false;
         public bool SetFileAssociations = false;
+        public bool DumpTemporaryFiles = false;
+        public bool CreateUpdateIndexFiles = false;
 
         public void AddPath(string dir, bool update = true)
         {
@@ -136,6 +142,8 @@ namespace CBLoader
             if (data.CheckForUpdatesSpecified) CheckForUpdates = data.CheckForUpdates;
             if (data.UpdateFirstSpecified) UpdateFirst = data.UpdateFirst;
             if (data.SetFileAssociationsSpecified) SetFileAssociations = data.SetFileAssociations;
+            if (data.DumpTemporaryFilesSpecified) DumpTemporaryFiles = data.DumpTemporaryFiles;
+            if (data.CreateUpdateIndexFilesSpecified) CreateUpdateIndexFiles = data.CreateUpdateIndexFiles;
 
             LoadedConfigPath = filename;
             
@@ -143,7 +151,8 @@ namespace CBLoader
                             "The new merge logic should be fast enough to not require it.");
             deprecatedCheck(filename, data.NewMergeLogicSpecified, "NewMergeLogic",
                             "A faster merge algorithm is always used now.");
-            deprecatedCheck(filename, data.ShowChangelog, "ShowChangelog");
+            deprecatedCheck(filename, data.ShowChangelog, "ShowChangelog",
+                            "Changelogs are always shown on the Character Builder title page.");
         }
         public bool AddOptionFile(string filename)
         {
@@ -234,6 +243,8 @@ namespace CBLoader
             bool? checkForUpdates = null;
             bool? updateFirst = null;
             bool? setFileAssociations = null;
+            bool? dumpTemporaryFiles = null;
+            bool? createUpdateIndexFiles = null;
 
             var opts = new OptionSet() {
                 "Usage: CBLoader [-c <config file>]",
@@ -247,6 +258,8 @@ namespace CBLoader
                     value => setUniqueString(ref configFile, "-c", value) },
                 { "no-config", "Do not use a configuration file.",
                     value => noConfig = true },
+                { "a|set-assocations", "Associate .dnd4e and .cbconfig with CBLoader.",
+                    value => setFileAssociations = false },
                 "",
                 "Path management:",
                 { "u|cache-path=", "Sets where to write temporary files.",
@@ -274,12 +287,16 @@ namespace CBLoader
                     value => forceUpdate = true },
                 { "e|force-remerge", "Always regenerate merged rules file.",
                     value => forceRemerge = true },
-                { "n|no-run", "Do not actually launch the character builder.",
-                    value => launchBuilder = false },
                 { "d|no-update", "Do not check for updates.",
                     value => checkForUpdates = false },
-                { "a|set-assocations", "Associate .dnd4e and .cbconfig with CBLoader.",
-                    value => setFileAssociations = false },
+                "",
+                "Development options:",
+                { "n|no-run", "Do not actually launch the character builder.",
+                    value => launchBuilder = false },
+                { "dump-temporary", "Dumps raw rules data to disk.",
+                    value => dumpTemporaryFiles = true },
+                { "create-update-indexes", "Create update version indexes.",
+                    value => createUpdateIndexFiles = true },
             };
 
             var execArgs = opts.Parse(args);
@@ -307,9 +324,11 @@ namespace CBLoader
             if (forceUpdate != null) options.ForceUpdate = (bool) forceUpdate;
             if (forceRemerge != null) options.ForceRemerge = (bool) forceRemerge;
             if (launchBuilder != null) options.LaunchBuilder = (bool) launchBuilder;
-            if (checkForUpdates != null) options.CheckForUpdates = (bool)checkForUpdates;
+            if (checkForUpdates != null) options.CheckForUpdates = (bool) checkForUpdates; 
             if (updateFirst != null) options.UpdateFirst = (bool) updateFirst;
             if (setFileAssociations != null) options.SetFileAssociations = (bool) setFileAssociations;
+            if (dumpTemporaryFiles != null) options.DumpTemporaryFiles = (bool) dumpTemporaryFiles;
+            if (createUpdateIndexFiles != null) options.CreateUpdateIndexFiles = (bool) createUpdateIndexFiles;
 
             if (options.CBPath == null && (options.CBPath = Utils.GetInstallPath()) == null)
                 throw new CBLoaderException(
@@ -347,6 +366,8 @@ namespace CBLoader
             if (options.CheckForUpdates && options.UpdateFirst)
                 fileManager.DoUpdates(options.ForceUpdate, false);
             fileManager.MergeFiles(options.ForceRemerge);
+            if (options.CreateUpdateIndexFiles)
+                fileManager.GenerateUpdateIndexes();
             if (options.LaunchBuilder)
                 ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
                                              fileManager.MergedPath, fileManager.ChangelogPath);

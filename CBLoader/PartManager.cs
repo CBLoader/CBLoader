@@ -54,7 +54,7 @@ namespace CBLoader
 
         public bool SameMergeInfo(MergeInfo info)
         {
-            return CBLoaderVersion == info.CBLoaderVersion && 
+            return CBLoaderVersion == info.CBLoaderVersion &&
                    EncryptionData == info.EncryptionData &&
                    PartFiles.SequenceEqual(info.PartFiles);
         }
@@ -105,77 +105,6 @@ namespace CBLoader
         }
     }
 
-    internal sealed class UpdateVersionData
-    {
-        public readonly string Hash, Version;
-
-        public UpdateVersionData(string hash, string version)
-        {
-            Hash = hash;
-            Version = version;
-        }
-    }
-
-    /// <summary>
-    /// A class that checks for updates to part files.
-    /// </summary>
-    internal sealed class UpdateChecker {
-        private readonly WebClient wc;
-        private readonly SHA256 sha256 = SHA256.Create();
-
-        private HashSet<string> downloaded =
-            new HashSet<string>();
-        private Dictionary<string, Dictionary<string, UpdateVersionData>> newFormatVersions = 
-            new Dictionary<string, Dictionary<string, UpdateVersionData>>();
-        private Dictionary<string, string> oldFormatVersions =
-            new Dictionary<string, string>();
-
-        public UpdateChecker(WebClient wc)
-        {
-            this.wc = wc;
-        }
-
-        private void downloadVersion(string updateUrl)
-        {
-            if (downloaded.Contains(updateUrl)) return;
-            Log.Debug($" - Checking for updates at {updateUrl}");
-
-            var data = wc.DownloadString(updateUrl);
-            downloaded.Add(updateUrl);
-            if (data.StartsWith("CBLoader Version File v2\n"))
-            {
-                var newDict = new Dictionary<string, UpdateVersionData>();
-                foreach (var line in data.Trim().Split('\n').Skip(1).Select(x => x.Trim()).Where(x => x != ""))
-                {
-                    var components = line.Split(new char[] { ':' }, 3);
-                    if (components.Length > 1) throw new Exception("Invalid update version file.");
-                    newDict[components[0].Trim()] = new UpdateVersionData(components[1].Trim(), components[2].Trim());
-                }
-                newFormatVersions[updateUrl] = newDict;
-            }
-            else oldFormatVersions[updateUrl] = data.Trim();
-        }
-        private UpdateVersionData getRemoteVersion(string updateUrl, string partFile)
-        {
-            downloadVersion(updateUrl);
-            if (newFormatVersions.ContainsKey(updateUrl))
-                return newFormatVersions[updateUrl][partFile];
-            if (oldFormatVersions.ContainsKey(updateUrl))
-                return new UpdateVersionData(null, oldFormatVersions[updateUrl]);
-            throw new Exception("Invalid UpdateChecker state!");
-        }
-        public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
-        {
-            var partFile = Path.GetFileName(filename);
-            var remoteVersion = getRemoteVersion(updateUrl, partFile);
-            if (remoteVersion.Version != currentVersion)
-                return true;
-            if (remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
-                return true;
-            return false;
-        }
-    }
-
     /// <summary>
     /// Manages interactions with the files on the disc
     /// </summary>
@@ -193,6 +122,9 @@ namespace CBLoader
         public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
         public string ChangelogPath { get => Path.Combine(options.CachePath, "merged_modules.html"); }
         public string MergedStatePath { get => Path.Combine(options.CachePath, "merge_state.xml"); }
+
+        public string DebugDumpOriginalPath { get => Path.Combine(options.CachePath, "combined.dnd40.original.xml"); }
+        public string DebugDumpMergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.merged.xml"); }
 
         public PartManager(LoaderOptions options, CryptoInfo cryptoInfo)
         {
@@ -339,8 +271,19 @@ namespace CBLoader
                         break;
                 }
             });
+
             Log.Info(" - Saving rules data to disk");
+            var document = merger.MakeDocument();
+            if (options.DumpTemporaryFiles) document.Save(DebugDumpMergedPath);
             cryptoInfo.SaveRulesFile(merger.MakeDocument(), MergedPath);
+
+            if (options.DumpTemporaryFiles)
+            {
+                Log.Info(" - Saving original rules file to disk");
+                using (var stream = cryptoInfo.OpenEncryptedFile(EncryptedPath))
+                    XDocument.Load(XmlReader.Create(stream)).Save(DebugDumpOriginalPath);
+            }
+
             Log.Info(" - Saving changelog to disk");
             File.WriteAllText(ChangelogPath, createChangelog(), Encoding.UTF8);
         }
@@ -406,7 +349,7 @@ namespace CBLoader
 
                 try
                 {
-                    string outputFile = Path.Combine(fi.Directory.FullName, partName);
+                    var outputFile = Path.Combine(fi.Directory.FullName, partName);
                     if (options.IsPartIgnored(partName)) continue;
                     if (!File.Exists(outputFile) || forced)
                     {
@@ -496,6 +439,44 @@ namespace CBLoader
             {
                 Log.Error("Failed to update rules files.", e);
             }
+        }
+
+        private static void tryAddUpdate(PartUpdateInfo info, string filename)
+        {
+            var document = XDocument.Load(filename);
+            var updateInfo = document.Root.Element("UpdateInfo");
+            if (updateInfo != null)
+                info.AddFile(filename, updateInfo.Element("Version").Value);
+        }
+        public void GenerateUpdateIndexes()
+        {
+            Log.Info("Creating update indexes.");
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            var indexes = collectFromDirectories(options.MergeDirectories, "*.index");
+            foreach (var index in indexes)
+            {
+                var updateData = new PartUpdateInfo();
+                tryAddUpdate(updateData, index.FullName);
+                var partIndex = XDocument.Load(index.FullName);
+                foreach (var part in partIndex.Root.Elements("Part"))
+                {
+                    var partName = part.Element("Filename").Value;
+                    if (!Utils.IsFilenameValid(partName))
+                    {
+                        Log.Warn($" - {partName} is not a valid filename in {index.FullName}! Skipping.");
+                        continue;
+                    }
+                    var fullPath = Path.Combine(index.Directory.FullName, partName);
+                    tryAddUpdate(updateData, fullPath);
+                }
+                File.WriteAllText($"{index.FullName}.txt", updateData.ToString());
+            }
+
+            stopwatch.Stop();
+            Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
+            Log.Debug();
         }
     }
 }

@@ -90,6 +90,7 @@
   <ItemGroup>
     <Compile Include="PartManager.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="PartUpdateInfo.cs" />
     <Compile Include="ProcessLauncher.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
