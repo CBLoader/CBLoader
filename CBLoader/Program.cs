@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Xml.Serialization;
 
 namespace CBLoader
@@ -358,8 +359,10 @@ namespace CBLoader
 
             if (options.VerboseMode) Log.VerboseMode = true;
 
-            CryptoInfo cryptoInfo = new CryptoInfo(options);
-            PartManager fileManager = new PartManager(options, cryptoInfo);
+            var cryptoInfo = new CryptoInfo(options);
+            var fileManager = new PartManager(options, cryptoInfo);
+
+            Thread programThread = null;
 
             if (options.SetFileAssociations)
                 Utils.UpdateRegistry();
@@ -369,10 +372,12 @@ namespace CBLoader
             if (options.CreateUpdateIndexFiles)
                 fileManager.GenerateUpdateIndexes();
             if (options.LaunchBuilder)
-                ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
-                                             fileManager.MergedPath, fileManager.ChangelogPath);
+                programThread =  ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
+                                                              fileManager.MergedPath, fileManager.ChangelogPath);
             if (options.CheckForUpdates && !options.UpdateFirst)
                 fileManager.DoUpdates(options.ForceUpdate, true);
+            if (programThread != null)
+                programThread.Join();
         }
         
         [LoaderOptimization(LoaderOptimization.MultiDomain)]

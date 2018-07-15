@@ -248,7 +248,7 @@ namespace CBLoader
             AddOverride(callback, assembly, false);
         }
         
-        public static void StartProcess(LoaderOptions options, string[] args, string redirectPath, string changelog)
+        public static Thread StartProcess(LoaderOptions options, string[] args, string redirectPath, string changelog)
         {
             Log.Info("Preparing to start CharacterBuilder.exe");
             var stopwatch = new Stopwatch();
@@ -303,6 +303,7 @@ namespace CBLoader
             });
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
+            return thread;
         }
     }
 }
