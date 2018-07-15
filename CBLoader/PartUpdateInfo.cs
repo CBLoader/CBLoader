@@ -98,12 +98,14 @@ namespace CBLoader
                 return newFormatVersions[updateUrl].Get(partFile);
             if (oldFormatVersions.ContainsKey(updateUrl))
                 return new UpdateVersionInfo(null, oldFormatVersions[updateUrl]);
-            throw new Exception("Invalid UpdateChecker state!");
+            return null;
         }
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
         {
             var partFile = Path.GetFileName(filename);
             var remoteVersion = getRemoteVersion(updateUrl, partFile);
+            if (remoteVersion == null)
+                return false;
             if (remoteVersion.Version != currentVersion)
                 return true;
             if (remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
