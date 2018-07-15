@@ -29,14 +29,14 @@ namespace CBLoader
 
         public void Parse(string data)
         {
-            if (!data.StartsWith("CBLoader Version File v2\n"))
+            if (!data.StartsWith("CBLoader Version File v2"))
                 throw new Exception("Wrong header!");
 
             files.Clear();
             foreach (var line in data.Trim().Split('\n').Skip(1).Select(x => x.Trim()).Where(x => x != ""))
             {
                 var components = line.Split(new char[] { ':' }, 3);
-                if (components.Length > 1) throw new Exception("Invalid update version file.");
+                if (components.Length != 3) throw new Exception("Invalid update version file.");
                 files[components[0].Trim()] = new UpdateVersionInfo(components[1].Trim(), components[2].Trim());
             }
         }
@@ -78,7 +78,7 @@ namespace CBLoader
                 Log.Debug($" - Checking for updates at {updateUrl}");
 
                 var data = wc.DownloadString(updateUrl);
-                if (data.StartsWith("CBLoader Version File v2\n"))
+                if (data.StartsWith("CBLoader Version File v2"))
                 {
                     var info = new PartUpdateInfo();
                     info.Parse(data);
