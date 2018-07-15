@@ -1,4 +1,7 @@
-﻿v1.4.0
+﻿v1.4.1
+* Fix critical bug with the program loader.
+
+v1.4.0
 * CBLoader is no longer installed into the same directory as the Character Builder.
   Rather, it is launched on its own and can find an installed copy.
 * Added a new merge algorithm that merges .part files much much faster.

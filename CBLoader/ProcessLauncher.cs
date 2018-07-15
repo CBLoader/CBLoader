@@ -208,7 +208,7 @@ namespace CBLoader
             InjectChangelog(assembly, changelog);
 
             Log.Debug("   - Removing D&D Compendium links.");
-            RemoveCompendiumLinks(assembly);
+            //RemoveCompendiumLinks(assembly);
 
             AddOverride(callback, assembly, true);
         }
