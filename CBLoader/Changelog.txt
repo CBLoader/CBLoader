@@ -1,6 +1,7 @@
 ﻿v1.4.1
 * Fix critical bug with the program loader.
 * Fix issue with updater when it fails to load a version info file.
+* Fix issue with how the merge algorithm handled certain tags.
 
 v1.4.0
 * CBLoader is no longer installed into the same directory as the Character Builder.

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -18,8 +19,9 @@ namespace CBLoader
         private const string PRINT_PREREQS_TAG = "$$CBLoader_Specific_Print_Prereqs";
 
         private Dictionary<string, string> attributes = new Dictionary<string, string>();
+        private StringBuilder rootText = null;
         private HashSet<string> categories = new HashSet<string>();
-        private Dictionary<string, string> specific = new Dictionary<string, string>();
+        private List<XElement> rootElements = new List<XElement>();
         private List<XNode> rules = new List<XNode>();
 
         internal string InternalId { get => attributes[PartMerger.INTERNAL_ID];
@@ -51,12 +53,6 @@ namespace CBLoader
             if (node is XElement) return new XElement((XElement) node);
             throw new Exception("cannot clone node");
         }
-        private void pushElement(XElement element, string tag, string text)
-        {
-            var childElement = new XElement(tag);
-            childElement.Add(new XText(text));
-            element.Add(childElement);
-        }
         internal XElement MakeElement()
         {
             var element = new XElement("RulesElement");
@@ -64,41 +60,24 @@ namespace CBLoader
                 element.SetAttributeValue(XName.Get(attribute.Key), attribute.Value);
 
             if (categories.Count > 0)
-                pushElement(element, "Category", string.Join(",", categories.ToArray()));
-            if (specific.ContainsKey(FLAVOR_TAG))
-                pushElement(element, "Flavor", specific[FLAVOR_TAG]);
-            if (specific.ContainsKey(PREREQS_TAG))
-                pushElement(element, "Prereqs", specific[PREREQS_TAG]);
-            if (specific.ContainsKey(PRINT_PREREQS_TAG))
-                pushElement(element, "print-prereqs", specific[PRINT_PREREQS_TAG]);
-            foreach (var specific in specific)
-                switch (specific.Key)
-                {
-                    case ROOT_TEXT_TAG: case FLAVOR_TAG: case PREREQS_TAG:
-                    case PRINT_PREREQS_TAG:
-                        break;
-                    default:
-                        var specificElement = new XElement("specific");
-                        specificElement.SetAttributeValue("name", specific.Key);
-                        specificElement.Add(new XText(specific.Value));
-                        element.Add(specificElement);
-                        break;
-                }
+            {
+                var childElement = new XElement("Category");
+                childElement.Add(new XText(String.Join(",", categories.ToArray())));
+                element.Add(childElement);
+            }
+            foreach (var rootElement in rootElements)
+                element.Add(new XElement(rootElement));
             if (rules.Count > 0)
             {
                 var rulesElement = new XElement("rules");
                 foreach (var rule in rules) rulesElement.Add(cloneNode(rule));
                 element.Add(rulesElement);
             }
-            if (specific.ContainsKey(ROOT_TEXT_TAG))
-                element.Add(new XText(specific[ROOT_TEXT_TAG]));
+            if (rootText != null)
+                element.Add(new XText(rootText.ToString()));
             return element;
         }
-
-        private void setSpecific(string key, string data)
-        {
-            specific[key] = data.Trim();
-        }
+        
         private string elementValue(XElement element)
         {
             if (element.FirstNode != null && (!(element.FirstNode is XText) || element.FirstNode.NextNode != null))
@@ -145,16 +124,10 @@ namespace CBLoader
                             categories.Add(category);
                         return;
                     case "specific":
-                        setSpecific(element.Attribute("name").Value, elementValue(element));
-                        return;
                     case "prereqs":
-                        setSpecific(PREREQS_TAG, elementValue(element));
-                        return;
                     case "print-prereqs":
-                        setSpecific(PRINT_PREREQS_TAG, elementValue(element));
-                        return;
                     case "flavor":
-                        setSpecific(FLAVOR_TAG, elementValue(element));
+                        rootElements.Add(element);
                         return;
                     case "rules":
                         foreach (var rule in element.Nodes())
@@ -166,8 +139,8 @@ namespace CBLoader
             if (node is XText)
             {
                 var text = (XText) node;
-                var cleaned = text.Value.Trim();
-                if (cleaned != "") setSpecific(ROOT_TEXT_TAG, cleaned);
+                if (rootText == null) rootText = new StringBuilder(text.Value);
+                else rootText.Append($"\n{text.Value}");
                 return;
             }
 
@@ -179,13 +152,7 @@ namespace CBLoader
             foreach (var node in element.Nodes())
                 pushNode(node);
         }
-
-        private void removeSpecific(string key)
-        {
-            if (!specific.ContainsKey(key))
-                Log.Warn($"   - Attempt to delete non-existant specific '{key}' in '{InternalId}'");
-            else specific.Remove(key);
-        }
+        
         private void removeAttribute(string attr)
         {
             if (!attributes.ContainsKey(attr))
@@ -206,20 +173,16 @@ namespace CBLoader
                         var nameAttr = element.Attribute("name");
                         if (nameAttr == null)
                             Log.Warn($"   - Attempt to remove a specific in '{InternalId}' without an name. A name attribute is required.");
-                        else removeSpecific(nameAttr.Value);
+                        else rootElements.RemoveAll(x => x.Name.LocalName.ToLower() == "specific" && x.Attribute("name").Value == nameAttr.Value);
                         return;
                     case "prereqs":
-                        removeSpecific(PREREQS_TAG);
-                        return;
                     case "print-prereqs":
-                        removeSpecific(PRINT_PREREQS_TAG);
-                        return;
                     case "flavor":
-                        removeSpecific(FLAVOR_TAG);
+                        rootElements.RemoveAll(x => x.Name.LocalName.ToLower() == element.Name.LocalName.ToLower());
                         return;
                     case "maintext":
-                        removeSpecific(ROOT_TEXT_TAG);
-                        return;
+                        rootText = null;
+                        break;
                     case "attribute":
                         removeAttribute(element.Attribute("name").Value);
                         return;
