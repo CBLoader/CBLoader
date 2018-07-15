@@ -72,17 +72,24 @@ namespace CBLoader
         private void downloadVersion(string updateUrl)
         {
             if (downloaded.Contains(updateUrl)) return;
-            Log.Debug($" - Checking for updates at {updateUrl}");
-
-            var data = wc.DownloadString(updateUrl);
             downloaded.Add(updateUrl);
-            if (data.StartsWith("CBLoader Version File v2\n"))
-            {
-                var info = new PartUpdateInfo();
-                info.Parse(data);
-                newFormatVersions[updateUrl] = info;
+
+            try {
+                Log.Debug($" - Checking for updates at {updateUrl}");
+
+                var data = wc.DownloadString(updateUrl);
+                if (data.StartsWith("CBLoader Version File v2\n"))
+                {
+                    var info = new PartUpdateInfo();
+                    info.Parse(data);
+                    newFormatVersions[updateUrl] = info;
+                }
+                else oldFormatVersions[updateUrl] = data.Trim();
             }
-            else oldFormatVersions[updateUrl] = data.Trim();
+            catch (Exception e)
+            {
+                Log.Debug($"Failed to load update info at {updateUrl}.", e);
+            }
         }
         private UpdateVersionInfo getRemoteVersion(string updateUrl, string partFile)
         {
