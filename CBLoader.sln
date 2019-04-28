@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dnlib", "dnlib\src\dnlib.cs
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mono.Options", "Mono.Options\Mono.Options.csproj", "{AB4CF537-0032-434E-8D92-5337E752E768}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CBLoader", "Z:\vm-share\Source Code\CBLoader\CBLoader\CBLoader.csproj", "{355AFEF1-5BE9-48B0-922A-0067E62B286C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CBLoader", "CBLoader\CBLoader.csproj", "{355AFEF1-5BE9-48B0-922A-0067E62B286C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
