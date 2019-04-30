@@ -5,11 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Security;
-using System.Text;
 using System.Threading;
+using System.Windows.Controls;
 
 namespace CBLoader
 {
@@ -20,11 +19,14 @@ namespace CBLoader
 
         private readonly Assembly myAssembly = Assembly.GetAssembly(typeof(TargetDomainCallback));
 
-        internal void Init(string cbDirectory, LogRemoteReceiver logRemote)
+        internal void Init(string cbDirectory, LogRemoteReceiver logRemote, string redirectPath, string callback)
         {
             this.cbDirectory = cbDirectory;
             Log.InitLoggingForChildDomain(logRemote);
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
+
+            Callbacks.redirectDataPath = redirectPath;
+            Callbacks.callbackPath = callback;
         }
         internal void AddOverride(string name, byte[] data)
         {
@@ -69,6 +71,41 @@ namespace CBLoader
         }
     }
 
+    public static class Callbacks
+    {
+        internal static String redirectDataPath;
+        internal static String callbackPath;
+
+        public static String DoRedirectPath(String streamPath)
+        {
+            if (streamPath != "combined.dnd40.encrypted") return streamPath;
+            Log.Debug("Overriding combined.dnd40.encrypted location.");
+            return redirectDataPath;
+        }
+
+        public static void OnException(Exception e)
+        {
+            Log.Error("Character Builder encountered unexpected error.", e);
+        }
+
+        public static string GetCallbackPath()
+        {
+            return $"file://{callbackPath}";
+        }
+
+        public static void FallbackFrame(Frame frame)
+        {
+            frame.Navigating += (sender, ev) => {
+                if (ev.Uri == null) return;
+                if (ev.Uri.Scheme != "file")
+                {
+                    ev.Cancel = true;
+                    frame.Navigate(new Uri(GetCallbackPath()));
+                }
+            };
+        }
+    }
+
     internal static class ProcessLauncher
     {
         private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
@@ -93,13 +130,13 @@ namespace CBLoader
             var patchedData = new MemoryStream();
             assembly.Write(patchedData, settings);
             callback.AddOverride(assembly.Name, patchedData.ToArray());
+            File.WriteAllBytes(assembly.Name, patchedData.ToArray());
         }
 
         private static void DisableExceptionHandlers(AssemblyDef assembly)
         {
             var unhandledExceptionDef =
                 assembly.ManifestModule.Find("SmartAssembly.SmartExceptionsCore.UnhandledException", false);
-            
             foreach (var method in unhandledExceptionDef.Methods)
             {
                 var exception_ty = typeof(Exception).FullName;
@@ -131,17 +168,37 @@ namespace CBLoader
                 method.Body.Instructions.RemoveAt(handlerStart);
 
             // Add a new exception handler.
-            var tempField = new Local(imp.ImportAsTypeSig(typeof(Exception)));
-            method.Body.Variables.Add(tempField);
             method.Body.Instructions.InsertRange(handlerStart, new Instruction[] {
-                OpCodes.Stloc.ToInstruction(tempField),
-                OpCodes.Ldstr.ToInstruction("Character Builder encountered unexpected error."),
-                OpCodes.Ldloc.ToInstruction(tempField),
-                OpCodes.Call.ToInstruction(imp.Import(typeof(Log).GetMethod("Error"))),
+                OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("OnException"))),
                 OpCodes.Ret.ToInstruction(),
             });
             exception.TryEnd = method.Body.Instructions[handlerStart];
             exception.HandlerStart = method.Body.Instructions[handlerStart];
+        }
+
+        private static string ADD_NAVIGATIONFAILED =
+            "System.Void System.Windows.Controls.Frame::add_NavigationFailed(System.Windows.Navigation.NavigationFailedEventHandler)";
+        private static void InjectChangelogFallback(AssemblyDef assembly, string changelog)
+        {
+            var imp = new Importer(assembly.ManifestModule);
+            var type = assembly.ManifestModule.Find("Character_Builder.MainWindow", false);
+            
+            var method = type.FindMethod("System.Windows.Markup.IComponentConnector.Connect");
+
+            for (int i = 0; i < method.Body.Instructions.Count; i++)
+            {
+                if (method.Body.Instructions[i].OpCode != OpCodes.Callvirt) continue;
+                var target = (IMethod)method.Body.Instructions[i].Operand;
+                if (target.FullName != ADD_NAVIGATIONFAILED) continue;
+
+                method.Body.Instructions.RemoveAt(i);
+                method.Body.Instructions.InsertRange(i, new Instruction[] {
+                    OpCodes.Pop.ToInstruction(),
+                    OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("FallbackFrame"))),
+                });
+
+                break;
+            }
         }
 
         private static void InjectChangelog(AssemblyDef assembly, string changelog)
@@ -149,12 +206,18 @@ namespace CBLoader
             var imp = new Importer(assembly.ManifestModule);
             var type = assembly.ManifestModule.Find("Character_Builder.TitlePage", false);
 
-            var property = type.FindProperty("CBInfoUrl");
-            var method = property.GetMethod;
+            if (type == null)
+            {
+                Log.Debug("     - This appears to be an older version, trying fallback approach.");
+                InjectChangelogFallback(assembly, changelog);
+                return;
+            } 
+            
+            var method = type.FindProperty("CBInfoUrl").GetMethod;
 
             method.Body = new CilBody();
             method.Body.MaxStack = 1;
-            method.Body.Instructions.Add(OpCodes.Ldstr.ToInstruction($"file://{Path.GetFullPath(changelog)}"));
+            method.Body.Instructions.Add(OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("GetCallbackPath"))));
             method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
         }
 
@@ -213,7 +276,7 @@ namespace CBLoader
             AddOverride(callback, assembly, true);
         }
 
-        private static void RedirectPath(AssemblyDef assembly, string redirectPath)
+        private static void RedirectPath(AssemblyDef assembly)
         {
             var imp = new Importer(assembly.ManifestModule);
 
@@ -221,29 +284,21 @@ namespace CBLoader
             var method = type.FindMethod("GetDecryptedStream", 
                 MethodSig.CreateStatic(imp.ImportAsTypeSig(typeof(Stream)),
                                        imp.ImportAsTypeSig(typeof(Guid)), imp.ImportAsTypeSig(typeof(string))));
-
-            var head = method.Body.Instructions[0];
-
+            
             method.Body.Instructions.InsertRange(0, new Instruction[] {
                 OpCodes.Ldarg.ToInstruction(method.Parameters[1]),
-                OpCodes.Ldstr.ToInstruction("combined.dnd40.encrypted"),
-                OpCodes.Call.ToInstruction(imp.Import(typeof(String).GetMethod("op_Equality"))),
-                OpCodes.Brfalse.ToInstruction(head),
-                OpCodes.Ldstr.ToInstruction(redirectPath),
+                OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("DoRedirectPath"))),
                 OpCodes.Starg.ToInstruction(method.Parameters[1]),
-                OpCodes.Ldstr.ToInstruction("Overriding combined.dnd40.encrypted location."),
-                OpCodes.Ldnull.ToInstruction(),
-                OpCodes.Call.ToInstruction(imp.Import(typeof(Log).GetMethod("Debug"))),
             });
             method.Body.OptimizeMacros();
         }
 
-        private static void PatchApplicationUpdate(TargetDomainCallback callback, string cbDirectory, string redirectPath)
+        private static void PatchApplicationUpdate(TargetDomainCallback callback, string cbDirectory)
         {
             var assembly = LoadAssembly(cbDirectory, "ApplicationUpdate.Client.dll");
 
             Log.Debug("   - Injecting combined rules location into GetDecryptedStream");
-            RedirectPath(assembly, redirectPath);
+            RedirectPath(assembly);
 
             AddOverride(callback, assembly, false);
         }
@@ -278,13 +333,13 @@ namespace CBLoader
             appDomain.AppendPrivatePath("<|>");
 #pragma warning restore CS0618
 
-            callback.Init(options.CBPath, Log.RemoteReceiver);
+            callback.Init(options.CBPath, Log.RemoteReceiver, Path.GetFullPath(redirectPath), Path.GetFullPath(changelog));
 
             Log.Debug(" - Patching CharacterBuilder.exe");
             PatchApplication(callback, options.CBPath, changelog);
 
             Log.Debug(" - Patching ApplicationUpdate.Client.dll");
-            PatchApplicationUpdate(callback, options.CBPath, redirectPath);
+            PatchApplicationUpdate(callback, options.CBPath);
 
             Log.Debug(" - Setting up environment.");
             Environment.CurrentDirectory = options.CBPath;
