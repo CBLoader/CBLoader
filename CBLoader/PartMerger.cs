@@ -90,6 +90,8 @@ namespace CBLoader
             foreach (var attribute in element.Attributes())
             {
                 var name = attribute.Name.LocalName;
+                if (name == "_SOURCE")
+                    throw new CBLoaderException("CBLoader does not support beta versions of the D&D 4E Character Builder.");
                 if (isAttributeValid(name))
                     attributes[name] = attribute.Value;
             }
@@ -227,6 +229,7 @@ namespace CBLoader
         private readonly string gameSystem;
         private Dictionary<string, RulesElement> rules = new Dictionary<string, RulesElement>();
         private List<XElement> rawElements = new List<XElement>();
+        internal bool usesLegacySourceAttribute = false;
 
         public PartMerger(string gameSystem)
         {

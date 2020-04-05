@@ -273,11 +273,13 @@ namespace CBLoader
             return store != null &&
                    UpdateKeys.SequenceEqual(store.UpdateKeys) &&
                    WriteGuid == store.WriteGuid &&
-                   (FallbackKey ?? new byte[0]).SequenceEqual(store.FallbackKey ?? new byte[0]);
+                   ((FallbackKey == null && store.FallbackKey == null) ||
+                    (FallbackKey != null && FallbackKey.SequenceEqual(store.FallbackKey)));
         }
         public static bool operator ==(KeyStore a, KeyStore b) => (a is null && b is null) || (!(a is null) && a.Equals(b));
         public static bool operator !=(KeyStore a, KeyStore b) => !(a == b);
-        public override int GetHashCode() => UpdateKeys.GetHashCode() ^ WriteGuid.GetHashCode() ^ (FallbackKey?.GetHashCode() ?? 1);
+        public override int GetHashCode() => 
+            UpdateKeys.GetHashCode() ^ WriteGuid.GetHashCode() ^ (FallbackKey ?? new byte[0]).GetHashCode();
     }
 
     internal sealed class CryptoInfo
@@ -332,6 +334,9 @@ namespace CBLoader
                 default:
                     throw new Exception("Unknown key store type.");
             }
+
+            if (isHeroicUpdate && (keyStore.WriteGuid == null || keyStore.Get(keyStore.WriteGuid) == null))
+                throw new CBLoaderException($"Key file {filename} is not valid.");
         }
         private void loadRegistryKeys(Guid appGuid)
         {

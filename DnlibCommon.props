@@ -1,0 +1,7 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <NoTargetFrameworkNet35>false</NoTargetFrameworkNet35>
+  </PropertyGroup>
+</Project>
+
