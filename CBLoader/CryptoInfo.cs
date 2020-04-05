@@ -273,11 +273,11 @@ namespace CBLoader
             return store != null &&
                    UpdateKeys.SequenceEqual(store.UpdateKeys) &&
                    WriteGuid == store.WriteGuid &&
-                   FallbackKey.SequenceEqual(store.FallbackKey);
+                   (FallbackKey ?? new byte[0]).SequenceEqual(store.FallbackKey ?? new byte[0]);
         }
         public static bool operator ==(KeyStore a, KeyStore b) => (a is null && b is null) || (!(a is null) && a.Equals(b));
         public static bool operator !=(KeyStore a, KeyStore b) => !(a == b);
-        public override int GetHashCode() => UpdateKeys.GetHashCode() ^ WriteGuid.GetHashCode() ^ FallbackKey.GetHashCode();
+        public override int GetHashCode() => UpdateKeys.GetHashCode() ^ WriteGuid.GetHashCode() ^ (FallbackKey?.GetHashCode() ?? 1);
     }
 
     internal sealed class CryptoInfo
