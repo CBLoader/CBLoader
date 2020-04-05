@@ -341,9 +341,12 @@ namespace CBLoader
             if (options.KeyFile == null) options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
 
             // Default part directory.
-            if (options.MergeDirectories.Count == 0 && options.UpdateDirectories.Count == 0 && options.LoadedConfigPath == null)
+            if (options.MergeDirectories.Count == 0 && options.UpdateDirectories.Count == 0)
+            {
                 options.AddPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
-            
+                options.AddPath(Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi"), "CBLoader")); // Why are we still using 3.5 again?
+            }
+
             // Update first anyway if LaunchBuilder isn't set -- we don't need this optimization.
             if (!options.LaunchBuilder) options.UpdateFirst = true;
 
@@ -403,20 +406,25 @@ namespace CBLoader
             {
                 Log.Error(e.Message);
             }
+#if !DEBUG
             catch (Exception e)
             {
                 Log.Error(null, e);
             }
-
-            if (Log.ErrorLogged && ConsoleWindow.IsInIndependentConsole)
+#endif
+            if (Log.ErrorLogged)
             {
-                Console.Write("Error encountered. Would you like to open the log file? (y/n) ");
-                if (Console.ReadKey().Key == ConsoleKey.Y)
+                if (ConsoleWindow.IsInIndependentConsole)
+                    Console.Write("Error encountered. Would you like to open the log file? (y/n) ");
+
+                if (!ConsoleWindow.IsInIndependentConsole || Console.ReadKey().Key == ConsoleKey.Y)
                 {
-                    Process p = new Process();
-                    p.StartInfo.UseShellExecute = true;
-                    p.StartInfo.FileName = Log.LogFileLocation;
-                    p.Start();
+                    using (var p = new Process())
+                    {
+                        p.StartInfo.UseShellExecute = true;
+                        p.StartInfo.FileName = Log.LogFileLocation;
+                        p.Start();
+                    }
                 }
             }
         }
