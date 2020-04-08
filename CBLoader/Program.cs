@@ -117,7 +117,10 @@ namespace CBLoader
         }
         private string processPath(string configRoot, string relative)
         {
-            return Path.Combine(configRoot, Environment.ExpandEnvironmentVariables(relative.Trim()));
+            string expanded = Environment.ExpandEnvironmentVariables(relative.Trim());
+            if (Path.IsPathRooted(expanded))
+                return expanded;
+            return Path.Combine(configRoot, expanded);
         }
         private void AddOptionFile(string filename, string configRoot, OptionsFileSchema data)
         {
@@ -344,8 +347,8 @@ namespace CBLoader
             if (options.MergeDirectories.Count == 0 && options.UpdateDirectories.Count == 0)
             {
                 options.AddPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
-                options.AddPath(Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi"), "CBLoader")); // Why are we still using 3.5 again?
             }
+            options.AddPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader"));
 
             // Update first anyway if LaunchBuilder isn't set -- we don't need this optimization.
             if (!options.LaunchBuilder) options.UpdateFirst = true;
