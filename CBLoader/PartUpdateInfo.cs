@@ -10,11 +10,15 @@ namespace CBLoader
     internal sealed class UpdateVersionInfo
     {
         public readonly string Hash, Version;
+        public readonly Version SemVer;
 
         public UpdateVersionInfo(string hash, string version)
         {
             Hash = hash;
             Version = version;
+            Version semVer;
+            if (System.Version.TryParse(version, out semVer))
+                SemVer = semVer;
         }
     }
 
@@ -102,8 +106,18 @@ namespace CBLoader
         }
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
         {
+            Version semver;
             var partFile = Path.GetFileName(filename);
             var remoteVersion = getRemoteVersion(updateUrl, partFile);
+            if (Version.TryParse(currentVersion, out semver))
+            {
+                if (remoteVersion.SemVer == null)
+                {
+                    Log.Warn($" - {partFile} has a semantic version, but the remote version doesn't.");
+                    return false;
+                }
+                return remoteVersion.SemVer > semver;
+            }
             if (remoteVersion == null)
                 return false;
             if (remoteVersion.Version != currentVersion)
