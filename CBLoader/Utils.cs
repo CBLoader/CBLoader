@@ -109,37 +109,44 @@ namespace CBLoader
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
 
-        private static void createAssociation(string uniqueId, string extension, string flags, string friendlyName)
+        private static bool MaybeSetValue(this RegistryKey key, string name, object value)
+        {
+            var v = key.GetValue(name);
+            if (!value.Equals(v))
+            {
+                key.SetValue(name, value);
+                return true;
+            }
+            return false;
+
+        }
+        private static bool createAssociation(string uniqueId, string extension, string flags, string friendlyName)
         {
             var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
+            var dirty = false;
 
             {
-                if (cuClasses.OpenSubKey(uniqueId) != null)
-                    cuClasses.DeleteSubKeyTree(uniqueId);
-
                 var progIdKey = cuClasses.CreateSubKey(uniqueId);
-                progIdKey.SetValue("", friendlyName);
-                progIdKey.SetValue("FriendlyTypeName", friendlyName);
-                progIdKey.CreateSubKey("CurVer").SetValue("", uniqueId);
-                addAction(uniqueId, "open", $"\"{Path.GetFullPath(Assembly.GetEntryAssembly().Location)}\" {flags} \"%1\"");
+                dirty = progIdKey.MaybeSetValue("", friendlyName) || dirty;
+                dirty = progIdKey.MaybeSetValue("FriendlyTypeName", friendlyName) || dirty;
+                dirty = progIdKey.CreateSubKey("CurVer").MaybeSetValue("", uniqueId) || dirty;
+                dirty = addAction(uniqueId, "open", $"\"{Path.GetFullPath(Assembly.GetEntryAssembly().Location)}\" {flags} \"%1\"") || dirty;
             }
 
             {
-                if (cuClasses.OpenSubKey(extension) != null)
-                    cuClasses.DeleteSubKeyTree(extension);
-
                 var progIdKey = cuClasses.CreateSubKey(extension);
-                progIdKey.SetValue("", uniqueId);
-                progIdKey.SetValue("PerceivedType", "Document");
+                dirty = progIdKey.MaybeSetValue("", uniqueId) || dirty;
+                dirty = progIdKey.MaybeSetValue("PerceivedType", "Document") || dirty;
             }
+            return dirty;
         }
-        private static void addAction(string uniqueId, string actionName, string invoke)
+        private static bool addAction(string uniqueId, string actionName, string invoke)
         {
             var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
             var progIdKey = cuClasses.CreateSubKey(uniqueId);
-            progIdKey
+            return progIdKey
                 .CreateSubKey("shell").CreateSubKey(actionName).CreateSubKey("command")
-                .SetValue("", invoke);
+                .MaybeSetValue("", invoke);
         }
 
         /// <summary>
@@ -153,14 +160,18 @@ namespace CBLoader
             Log.Info("Setting file associations.");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
-
-            createAssociation("CBLoader.dnd4e.1", ".dnd4e", "--",
-                              "D&D Insider Character Builder file");
-            createAssociation("CBLoader.cbconfig.1", ".cbconfig", "-c",
-                              "CBLoader configuration file");
-            addAction("CBLoader.cbconfig.1", "Edit CBLoader Configuration", 
-                      "notepad.exe \"%1\"");
-            SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
+            var dirty = false;
+            dirty = createAssociation("CBLoader.dnd4e.1", ".dnd4e", "--",
+                              "D&D Insider Character Builder file") || dirty;
+            dirty = createAssociation("CBLoader.cbconfig.1", ".cbconfig", "-c",
+                              "CBLoader configuration file") || dirty;
+            var editor = "notepad.exe";
+            if (ExistsOnPath("code")) // VS Code
+                editor = GetFullPath("code");
+            dirty = addAction("CBLoader.cbconfig.1", "Edit CBLoader Configuration", 
+                              $"{editor} \"%1\"") || dirty;
+            if (dirty)
+                SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
@@ -178,5 +189,23 @@ namespace CBLoader
             StripBOM(Encoding.UTF8.GetString(data));
         public static string HashFile(string filename) =>
             Convert.ToBase64String(SHA256.Create().ComputeHash(File.ReadAllBytes(filename)));
+
+        public static bool ExistsOnPath(string fileName) => 
+            GetFullPath(fileName) != null;
+
+        public static string GetFullPath(string fileName)
+        {
+            if (File.Exists(fileName))
+                return Path.GetFullPath(fileName);
+
+            var values = Environment.GetEnvironmentVariable("PATH");
+            foreach (var path in values.Split(Path.PathSeparator))
+            {
+                var fullPath = Path.Combine(path, fileName);
+                if (File.Exists(fullPath))
+                    return fullPath;
+            }
+            return null;
+        }
     }
 }
