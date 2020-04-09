@@ -310,8 +310,20 @@ namespace CBLoader
                                 if (uc.CheckRequiresUpdate(fi.FullName, localVersion, address.Value))
                                 {
                                     Log.Info($" - Downloading update for {fi.Name}");
-                                    wc.DownloadFile(metadata.Element("PartAddress").Value, Path.Combine(fi.DirectoryName, fi.FullName));
-                                    initPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
+                                    string dest = Path.Combine(fi.DirectoryName, fi.FullName);
+                                    string temp = Path.Combine(fi.DirectoryName, fi.FullName + ".tmp");
+                                    wc.DownloadFile(metadata.Element("PartAddress").Value, temp);
+                                    try
+                                    {
+                                        XElement.Load(temp);
+                                        File.Delete(dest);
+                                        File.Move(temp, dest);
+                                        initPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
+                                    }
+                                    catch (Exception c)
+                                    {
+                                        Log.Error("Failed to load updated part.", c);
+                                    }
                                 }
                             }
                         }

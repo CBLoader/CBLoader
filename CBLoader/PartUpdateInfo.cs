@@ -106,10 +106,9 @@ namespace CBLoader
         }
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
         {
-            Version semver;
             var partFile = Path.GetFileName(filename);
             var remoteVersion = getRemoteVersion(updateUrl, partFile);
-            if (Version.TryParse(currentVersion, out semver))
+            if (Version.TryParse(currentVersion, out Version semver))
             {
                 if (remoteVersion.SemVer == null)
                 {
