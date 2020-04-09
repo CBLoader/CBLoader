@@ -207,5 +207,32 @@ namespace CBLoader
             }
             return null;
         }
+
+        public static void CopyAll(string source, string target, bool overwrite = false) =>
+            CopyAll(new DirectoryInfo(source), new DirectoryInfo(target), overwrite);
+
+        public static void CopyAll(DirectoryInfo source, DirectoryInfo target, bool overwrite = false)
+        {
+            Directory.CreateDirectory(target.FullName);
+
+            // Copy each file into the new directory.
+            foreach (FileInfo fi in source.GetFiles())
+            {
+                var targetFile = new FileInfo(Path.Combine(target.FullName, fi.Name));
+
+                if (overwrite || !targetFile.Exists)
+                {
+                    fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
+                }
+            }
+
+            // Copy each subdirectory using recursion.
+            foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+            {
+                var nextTargetSubDir =
+                    target.CreateSubdirectory(diSourceSubDir.Name);
+                CopyAll(diSourceSubDir, nextTargetSubDir);
+            }
+        }
     }
 }

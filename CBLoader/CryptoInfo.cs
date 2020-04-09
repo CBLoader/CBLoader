@@ -111,6 +111,9 @@ namespace CBLoader
     /// </summary>
     internal sealed class ParsedD20RulesEngine
     {
+        public const int DemoHashOct2010 = 353245070;
+        public const int DemoHashApr2009 = 2104844035;
+
         public readonly uint expectedDemoHash, expectedNormalHash;
 
         public ParsedD20RulesEngine(string assemblyPath)
@@ -128,7 +131,7 @@ namespace CBLoader
             for (int i = 0; i < method.Body.Instructions.Count; i++)
             {
                 if (method.Body.Instructions[i].OpCode == OpCodes.Call &&
-                    ((IMethod) method.Body.Instructions[i].Operand).Name == "GenerateHash")
+                    ((IMethod)method.Body.Instructions[i].Operand).Name == "GenerateHash")
                 {
                     computeHashStart = i;
                     break;
@@ -139,7 +142,7 @@ namespace CBLoader
             // Find the local the hash is stored in.
             if (method.Body.Instructions[computeHashStart + 1].OpCode != OpCodes.Stloc)
                 throw new Exception("stloc does not follow call to ComputeHash in LoadRulesFile.");
-            var hashVar = (IVariable) method.Body.Instructions[computeHashStart + 1].Operand;
+            var hashVar = (IVariable)method.Body.Instructions[computeHashStart + 1].Operand;
 
             // Find the three comparisons that should follow.
             var hashes = new uint[3];
@@ -147,11 +150,11 @@ namespace CBLoader
             for (int i = computeHashStart; i < Math.Min(method.Body.Instructions.Count - 2, computeHashStart + 30); i++)
             {
                 if (method.Body.Instructions[i + 0].OpCode == OpCodes.Ldloc &&
-                    ((IVariable) method.Body.Instructions[i + 0].Operand).Index == hashVar.Index &&
+                    ((IVariable)method.Body.Instructions[i + 0].Operand).Index == hashVar.Index &&
                     method.Body.Instructions[i + 1].OpCode == OpCodes.Ldc_I4 &&
                     method.Body.Instructions[i + 2].OpCode.OperandType == OperandType.InlineBrTarget)
                 {
-                    var currentHash = (uint) (int) method.Body.Instructions[i + 1].Operand;
+                    var currentHash = (uint)(int)method.Body.Instructions[i + 1].Operand;
                     hashes[foundComparisons++] = currentHash;
                     if (foundComparisons == 3) break;
                 }
@@ -161,6 +164,10 @@ namespace CBLoader
 
             // Output hash information.
             Log.Trace($"   - demoHash = {hashes[0]}, normalHash = {hashes[1]}");
+            if (hashes[0] != DemoHashOct2010)
+            {
+                Log.Warn("You have an outdated install of Character Builder. Did you install the October 2010 patch?");
+            }
             this.expectedDemoHash = hashes[0];
             this.expectedNormalHash = hashes[1];
         }

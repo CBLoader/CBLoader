@@ -344,6 +344,9 @@ namespace CBLoader
                     "Please specify its path with <CBPath>path/to/builder</CBPath> in the configuration " +
                     "or reinstall Character Builder.");
 
+            // Default cache Path
+            if (options.CachePath == null) options.CachePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Cache");
+
             // Default keyfile location.
             if (options.KeyFile == null) options.KeyFile = Path.Combine(options.CachePath, "cbloader.keyfile");
 
@@ -370,6 +373,39 @@ namespace CBLoader
             if (options.VerboseMode) Log.VerboseMode = true;
 
             var cryptoInfo = new CryptoInfo(options);
+            if (cryptoInfo.expectedDemoHash == ParsedD20RulesEngine.DemoHashApr2009)
+            {
+                Log.Trace("Trying to solve outdated version.");
+                bool solved = false;
+                var destDirName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Character Builder");
+                if (Directory.Exists(destDirName))
+                {
+                    Log.Trace($"  - Using pre-patched {destDirName}");
+
+                    options.CBPath = destDirName;
+                    solved = true;
+                }
+
+                var defaultPath = @"C:\Program Files\Wizards of the Coast\Character Builder".Replace('\\', Path.DirectorySeparatorChar);
+                Log.Trace($"  - Looking in {defaultPath}");
+                if (Directory.Exists(defaultPath))
+                {
+                    var path = Patch(options.CBPath, defaultPath);
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        Log.Trace($"  - Patch works. Moving to {destDirName}");
+                        Utils.CopyAll(path, destDirName);
+                        new DirectoryInfo(path).Delete(true);
+                        options.CBPath = destDirName;
+                        Log.Trace($"  - Patch successful");
+                        solved = true;
+                    }
+                }
+
+                if (solved)
+                    cryptoInfo = new CryptoInfo(options);
+            }
+
             var fileManager = new PartManager(options, cryptoInfo);
 
             Thread programThread = null;
@@ -389,7 +425,7 @@ namespace CBLoader
             if (programThread != null)
                 programThread.Join();
         }
-        
+
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         internal static void Main(string[] args)
         {
@@ -434,6 +470,19 @@ namespace CBLoader
                     }
                 }
             }
+        }
+
+        private static string Patch(string cBPath, string updatePath)
+        {
+            var tmp = Path.Combine(Path.GetTempPath(), nameof(CBLoader));
+            Directory.CreateDirectory(tmp);
+
+            Utils.CopyAll(cBPath, tmp, true);
+            Utils.CopyAll(updatePath, tmp, true);
+            var probe = new CryptoInfo(new LoaderOptions { CBPath = tmp });
+            if (probe.expectedDemoHash == ParsedD20RulesEngine.DemoHashOct2010)
+                return tmp;
+            return null;
         }
     }
 }
