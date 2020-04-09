@@ -119,7 +119,7 @@
     <Content Include="gpl-2.0.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="README.TXT">
+    <Content Include="..\README.TXT">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Properties\hres-large.ico" />
