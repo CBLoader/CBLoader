@@ -219,6 +219,10 @@ namespace CBLoader
         {
             var ver = typeof(Program).Assembly.GetName().Version;
             Version = $"{ver.Major}.{ver.Minor}.{ver.Build}";
+#if DEBUG
+            Version += " Beta";
+#endif
+
         }
         
         private static void setUniqueString(ref string target, string flag, string value)
