@@ -348,7 +348,7 @@ namespace CBLoader
             {
                 options.AddPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Custom"));
             }
-            options.AddPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader"));
+            options.AddPath(Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi"), "CBLoader"));
 
             // Update first anyway if LaunchBuilder isn't set -- we don't need this optimization.
             if (!options.LaunchBuilder) options.UpdateFirst = true;

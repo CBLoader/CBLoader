@@ -16,9 +16,13 @@ namespace CBLoader
         {
             Hash = hash;
             Version = version;
-            Version semVer;
-            if (System.Version.TryParse(version, out semVer))
-                SemVer = semVer;
+            try
+            {
+                SemVer = new Version(version);
+            }
+            catch (ArgumentException)
+            {
+            }
         }
     }
 
@@ -108,7 +112,13 @@ namespace CBLoader
         {
             var partFile = Path.GetFileName(filename);
             var remoteVersion = getRemoteVersion(updateUrl, partFile);
-            if (Version.TryParse(currentVersion, out Version semver))
+            Version semver = null;
+            try
+            {
+                semver = new Version(currentVersion);
+            }
+            catch (ArgumentException) { }
+            if (semver != null)
             {
                 if (remoteVersion.SemVer == null)
                 {
