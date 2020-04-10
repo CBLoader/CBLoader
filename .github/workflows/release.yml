@@ -9,6 +9,16 @@ jobs:
   publish:
     runs-on: windows-latest
     steps:
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
     - uses: actions/checkout@v1
       with:
         submodules: true 
@@ -20,17 +30,7 @@ jobs:
       uses: warrenbuckley/Setup-MSBuild@v1
     - name: Build with MSBuild
       run: msbuild -p:Configuration=Release
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-    - run: 7z a Release.zip /*
+    - run: 7z a Release.zip ./*
       working-directory: CBLoader/bin/Release
     - name: Upload Release Asset
       id: upload-release-asset 
