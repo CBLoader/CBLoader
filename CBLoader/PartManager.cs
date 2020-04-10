@@ -140,6 +140,9 @@ namespace CBLoader
         private static FileInfo[] collectFromDirectories(IEnumerable<string> directories, params string[] glob) =>
             directories.SelectMany(dir => glob.SelectMany(x => getFromDirectory(dir, x))).OrderBy(x => x.Name).ToArray();
 
+        private static FileInfo findPart(IEnumerable<string> directories, string fn) =>
+            directories.Select(dir => new FileInfo(Path.Combine(dir, fn))).FirstOrDefault(fi => fi.Exists);
+
         private PartStatus initPartStatus(string filename, XDocument sources)
         {
             filename = Path.GetFullPath(filename);
@@ -481,7 +484,12 @@ namespace CBLoader
                         continue;
                     }
                     var fullPath = Path.Combine(index.Directory.FullName, partName);
-                    tryAddUpdate(updateData, fullPath);
+                    if (!File.Exists(fullPath)) // Uh Oh.
+                        fullPath = findPart(options.MergeDirectories, partName)?.FullName;
+                    if (fullPath != null)
+                        tryAddUpdate(updateData, fullPath);
+                    else
+                        Log.Warn($"{index.Name} references {partName}, but it doesn't exist");
                 }
                 File.WriteAllText($"{index.FullName}.txt", updateData.ToString());
             }

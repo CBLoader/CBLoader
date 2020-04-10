@@ -41,7 +41,7 @@ namespace CBLoader
                 throw new Exception("Wrong header!");
 
             files.Clear();
-            foreach (var line in data.Trim().Split('\n').Skip(1).Select(x => x.Trim()).Where(x => x != ""))
+            foreach (var line in data.Trim().Split('\n').Skip(1).Select(x => x.Trim()).Where(x => x != "" && !x.StartsWith("#")))
             {
                 var components = line.Split(new char[] { ':' }, 3);
                 if (components.Length != 3) throw new Exception("Invalid update version file.");

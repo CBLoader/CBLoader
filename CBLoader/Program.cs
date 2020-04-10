@@ -103,8 +103,12 @@ namespace CBLoader
 
         public void AddPath(string dir, bool update = true)
         {
+            if (!Directory.Exists(dir))
+                return;
             MergeDirectories.Add(dir);
             if (update) UpdateDirectories.Add(dir);
+            foreach (var subdir in Directory.GetDirectories(dir))
+                AddPath(subdir, update);
         }
 
         private void deprecatedCheck(string filename, bool exists, string tag, string extra = null)
