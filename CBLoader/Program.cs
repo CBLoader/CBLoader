@@ -375,35 +375,7 @@ namespace CBLoader
             var cryptoInfo = new CryptoInfo(options);
             if (cryptoInfo.expectedDemoHash == ParsedD20RulesEngine.DemoHashApr2009)
             {
-                Log.Trace("Trying to solve outdated version.");
-                bool solved = false;
-                var destDirName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Character Builder");
-                if (Directory.Exists(destDirName))
-                {
-                    Log.Trace($"  - Using pre-patched {destDirName}");
-
-                    options.CBPath = destDirName;
-                    solved = true;
-                }
-
-                var defaultPath = @"C:\Program Files\Wizards of the Coast\Character Builder".Replace('\\', Path.DirectorySeparatorChar);
-                Log.Trace($"  - Looking in {defaultPath}");
-                if (Directory.Exists(defaultPath))
-                {
-                    var path = Patch(options.CBPath, defaultPath);
-                    if (!string.IsNullOrEmpty(path))
-                    {
-                        Log.Trace($"  - Patch works. Moving to {destDirName}");
-                        Utils.CopyAll(path, destDirName);
-                        new DirectoryInfo(path).Delete(true);
-                        options.CBPath = destDirName;
-                        Log.Trace($"  - Patch successful");
-                        solved = true;
-                    }
-                }
-
-                if (solved)
-                    cryptoInfo = new CryptoInfo(options);
+                Solve2009Version(options, ref cryptoInfo);
             }
 
             var fileManager = new PartManager(options, cryptoInfo);
@@ -470,6 +442,40 @@ namespace CBLoader
                     }
                 }
             }
+        }
+
+        private static bool Solve2009Version(LoaderOptions options, ref CryptoInfo cryptoInfo)
+        {
+            Log.Trace("Trying to solve outdated version.");
+            var destDirName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Character Builder");
+            if (Directory.Exists(destDirName))
+            {
+
+                options.CBPath = destDirName;
+                cryptoInfo = new CryptoInfo(options);
+                Log.Trace($"Using pre-patched {destDirName}");
+                return true;
+            }
+
+            var defaultPath = @"C:\Program Files\Wizards of the Coast\Character Builder".Replace('\\', Path.DirectorySeparatorChar);
+            Log.Trace($"  - Looking in {defaultPath}");
+            if (Directory.Exists(defaultPath))
+            {
+                Log.Trace($"  - Applying patch");
+                var path = Patch(options.CBPath, defaultPath);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    Log.Trace($"  - Patch works. Moving to {destDirName}");
+                    Utils.CopyAll(path, destDirName);
+                    new DirectoryInfo(path).Delete(true);
+                    options.CBPath = destDirName;
+                    cryptoInfo = new CryptoInfo(options);
+                    Log.Trace($"Patch successful");
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string Patch(string cBPath, string updatePath)
