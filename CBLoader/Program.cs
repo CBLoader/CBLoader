@@ -471,6 +471,14 @@ namespace CBLoader
                     options.CBPath = destDirName;
                     cryptoInfo = new CryptoInfo(options);
                     Log.Trace($"Patch successful");
+                    var baseconfigpath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "default.cbconfig");
+                    if (File.Exists(baseconfigpath)) // Point the config file at this for future launches
+                    {
+                        var doc = System.Xml.Linq.XDocument.Load(baseconfigpath);
+                        doc.Root.Add(new System.Xml.Linq.XElement("CharacterBuilderPath", options.CBPath));
+                        doc.Save(baseconfigpath);
+                    }
+                    Log.Warn("CBLoader has manually reapplied a failed April2010 patch install.");
                     return true;
                 }
             }
