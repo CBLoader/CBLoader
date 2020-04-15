@@ -62,6 +62,9 @@ namespace CBLoader
         [DllImport("kernel32.dll")]
         private static extern int GetProcessId(IntPtr process);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern uint GetConsoleProcessList(uint[] ProcessList, uint ProcessCount);
+
         private const int SW_HIDE = 0;
         private const int SW_SHOW = 5;
 
@@ -71,7 +74,10 @@ namespace CBLoader
             if (console.ToInt64() == 0) return false;
             var process = GetProcessHandleFromHwnd(console);
             if (process.ToInt64() == 0) return false;
-            return GetProcessId(process) == Process.GetCurrentProcess().Id;
+            uint[] procIDs = new uint[16];
+            var count = GetConsoleProcessList(procIDs, 16);
+            Log.Debug($"Console has {count} processes.");
+            return count == 1;
         }
 
         public static readonly bool IsInIndependentConsole = 
