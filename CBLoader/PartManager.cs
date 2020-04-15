@@ -419,7 +419,7 @@ namespace CBLoader
         /// </summary>
         /// <param name="forced">Whether to always redownload files from indexes.</param>
         /// <param name="background">Whether this is being run in the background.</param>
-        public void DoUpdates(bool forced, bool background)
+        public void DoUpdates(bool forced, bool background, bool indexesOnly)
         {
             try
             {
@@ -437,6 +437,9 @@ namespace CBLoader
                 var uc = new UpdateChecker(wc);
                 var customFiles = collectFromDirectories(options.UpdateDirectories, "*.part");
                 var indexes = collectFromDirectories(options.UpdateDirectories, "*.index");
+
+                if (indexesOnly)
+                    customFiles = new FileInfo[0];
 
                 var obsoleteList = new HashSet<string>();
                 foreach (var fi in indexes)

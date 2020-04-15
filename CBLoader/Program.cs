@@ -388,8 +388,9 @@ namespace CBLoader
 
             if (options.SetFileAssociations)
                 Utils.UpdateRegistry();
+            fileManager.DoUpdates(options.ForceUpdate, false, true);
             if (options.CheckForUpdates && options.UpdateFirst)
-                fileManager.DoUpdates(options.ForceUpdate, false);
+                fileManager.DoUpdates(options.ForceUpdate, false, false);
             fileManager.MergeFiles(options.ForceRemerge);
             if (options.CreateUpdateIndexFiles)
                 fileManager.GenerateUpdateIndexes();
@@ -397,7 +398,9 @@ namespace CBLoader
                 programThread =  ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
                                                               fileManager.MergedPath, fileManager.ChangelogPath);
             if (options.CheckForUpdates && !options.UpdateFirst)
-                fileManager.DoUpdates(options.ForceUpdate, true);
+                fileManager.DoUpdates(options.ForceUpdate, true, false);
+            if (!options.CheckForUpdates)
+                Log.Warn("Updates are currently disabled");
             if (programThread != null)
                 programThread.Join();
         }

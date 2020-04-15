@@ -34,11 +34,13 @@
   <!-- Set this to true to update parts before merging them.-->
   <UpdateFirst>false</UpdateFirst>
   
-  <!-- Set this to false to disable associating CBLoader with .dnd4e and .cbconfig on boot. -->
-  <SetFileAssociations>true</SetFileAssociations>
+  <!-- Set this to true to allow you to load .dnd4e and .cbconfig with CBLoader. -->
+  <SetFileAssociations>false</SetFileAssociations>
   
+  <!-- Enable this if you or tools you use need to look at the unencrypted files. -->
+  <DumpTemporaryFiles>false</DumpTemporaryFiles>
+
   <!-- The following options are meant for development of homebrew rules files. -->
   <LaunchBuilder>true</LaunchBuilder>
-  <DumpTemporaryFiles>false</DumpTemporaryFiles>
   <CreateUpdateIndexFiles>false</CreateUpdateIndexFiles>
 </Settings>

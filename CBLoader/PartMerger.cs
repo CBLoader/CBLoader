@@ -90,8 +90,8 @@ namespace CBLoader
             foreach (var attribute in element.Attributes())
             {
                 var name = attribute.Name.LocalName;
-                if (name == "_SOURCE")
-                    throw new CBLoaderException("CBLoader does not support beta versions of the D&D 4E Character Builder.");
+                //if (name == "_SOURCE")
+                //    throw new CBLoaderException("CBLoader does not support beta versions of the D&D 4E Character Builder.");
                 if (isAttributeValid(name))
                     attributes[name] = attribute.Value;
             }
