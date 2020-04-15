@@ -191,6 +191,9 @@ namespace CBLoader
                     case "rules":
                         rules.Clear();
                         break;
+                    default:
+                        Log.Warn($"Unexpected Element in RemoveNode {element.Name.LocalName}");
+                        break;
                 }
             }
 
@@ -277,7 +280,7 @@ namespace CBLoader
                 case "massappend":
                     foreach (var id in element.Attribute("ids").Value.Split(',').Select(x => x.Trim()).Where(x => x != ""))
                         if (!rules.ContainsKey(id))
-                            Log.Warn($"   - Attempt to mass append to non-existant RulesElement '{id}'");
+                            Log.Warn($"   - Attempt to mass append to non-existant RulesElement '{id}'. Check load order.");
                         else getRules(id, false).AddNodes(element, attributes: false);
                     break;
                 case "removenodes":

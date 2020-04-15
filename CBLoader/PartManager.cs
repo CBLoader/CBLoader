@@ -301,7 +301,10 @@ namespace CBLoader
                 if (metadata != null)
                     try
                     {
-                        var address = metadata.Element("VersionAddress");
+                        var address = metadata.Element("V2Address");
+                        if (address == null)
+                            address = metadata.Element("VersionAddress");
+
                         if (address != null)
                         {
                             var targetFilename = metadata.Element("Filename");
@@ -461,10 +464,17 @@ namespace CBLoader
 
         private static void tryAddUpdate(PartUpdateInfo info, string filename)
         {
-            var document = XDocument.Load(filename);
-            var updateInfo = document.Root.Element("UpdateInfo");
-            if (updateInfo != null)
-                info.AddFile(filename, updateInfo.Element("Version").Value);
+            try
+            {
+                var document = XDocument.Load(filename);
+                var updateInfo = document.Root.Element("UpdateInfo");
+                if (updateInfo != null)
+                    info.AddFile(filename, updateInfo.Element("Version").Value);
+            }
+            catch (XmlException c)
+            {
+                Log.Warn($"Unable load {filename}", c);
+            }
         }
         public void GenerateUpdateIndexes()
         {

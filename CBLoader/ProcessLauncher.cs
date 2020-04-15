@@ -236,6 +236,7 @@ namespace CBLoader
                 method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
             }
 
+            // Probably only want to do this for broken links
             {
                 // Remove source link URI
                 var method = type.FindMethod("AddSource");
@@ -257,6 +258,7 @@ namespace CBLoader
                     break;
                 }
             }
+   
         }
 
         private static void PatchApplication(TargetDomainCallback callback, string cbDirectory, string changelog)
@@ -302,7 +304,7 @@ namespace CBLoader
 
             AddOverride(callback, assembly, false);
         }
-        
+
         public static Thread StartProcess(LoaderOptions options, string[] args, string redirectPath, string changelog)
         {
             Log.Info("Preparing to start CharacterBuilder.exe");
