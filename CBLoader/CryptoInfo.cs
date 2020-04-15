@@ -113,6 +113,7 @@ namespace CBLoader
     {
         public const int DemoHashOct2010 = 353245070;
         public const int DemoHashApr2009 = 2104844035;
+        public const int DemoHashBeta    = 1095607614;
 
         public readonly uint expectedDemoHash, expectedNormalHash;
 

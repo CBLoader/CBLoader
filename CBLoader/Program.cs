@@ -377,7 +377,7 @@ namespace CBLoader
             if (options.VerboseMode) Log.VerboseMode = true;
 
             var cryptoInfo = new CryptoInfo(options);
-            if (cryptoInfo.expectedDemoHash == ParsedD20RulesEngine.DemoHashApr2009)
+            if (cryptoInfo.expectedDemoHash != ParsedD20RulesEngine.DemoHashOct2010)
             {
                 Solve2009Version(options, ref cryptoInfo);
             }
