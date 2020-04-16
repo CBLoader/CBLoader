@@ -2,3 +2,5 @@
 */obj/
 */*.csproj.user
 .vs/
+
+/packages/

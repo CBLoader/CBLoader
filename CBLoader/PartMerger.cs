@@ -18,11 +18,11 @@ namespace CBLoader
         private const string PREREQS_TAG = "$$CBLoader_Specific_Prereqs";
         private const string PRINT_PREREQS_TAG = "$$CBLoader_Specific_Print_Prereqs";
 
-        private Dictionary<string, string> attributes = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> attributes = new Dictionary<string, string>();
         private StringBuilder rootText = null;
-        private HashSet<string> categories = new HashSet<string>();
-        private List<XElement> rootElements = new List<XElement>();
-        private List<XNode> rules = new List<XNode>();
+        private readonly HashSet<string> categories = new HashSet<string>();
+        private readonly List<XElement> rootElements = new List<XElement>();
+        private readonly List<XNode> rules = new List<XNode>();
 
         internal string InternalId { get => attributes[PartMerger.INTERNAL_ID];
                                      set => attributes[PartMerger.INTERNAL_ID] = value; }
@@ -104,9 +104,8 @@ namespace CBLoader
                 rules.Add((XElement) node);
                 return;
             }
-            if (node is XText)
+            if (node is XText text)
             {
-                var text = (XText) node;
                 if (text.Value.Trim() == "") return;
                 rules.Add(text);
                 return;
@@ -115,9 +114,8 @@ namespace CBLoader
         }
         private void pushNode(XNode node)
         {
-            if (node is XElement)
+            if (node is XElement element)
             {
-                var element = (XElement) node;
                 switch (element.Name.LocalName.ToLower())
                 {
                     case "category":
@@ -138,9 +136,8 @@ namespace CBLoader
                 }
             }
 
-            if (node is XText)
+            if (node is XText text)
             {
-                var text = (XText) node;
                 if (rootText == null) rootText = new StringBuilder(text.Value);
                 else rootText.Append($"\n{text.Value}");
                 return;
@@ -163,9 +160,8 @@ namespace CBLoader
         }
         private void processRemoveNode(XNode node)
         {
-            if (node is XElement)
+            if (node is XElement element)
             {
-                var element = (XElement)node;
                 switch (element.Name.LocalName.ToLower())
                 {
                     case "category":
@@ -197,9 +193,8 @@ namespace CBLoader
                 }
             }
 
-            if (node is XText)
+            if (node is XText text)
             {
-                var text = (XText) node;
                 if (text.Value.Trim() == "") return;
                 Log.Warn(@"   - Text was found in an RemoveNodes element. To remove text from a rule, use <MainText/> instead.");
                 return;
@@ -230,8 +225,8 @@ namespace CBLoader
         internal const string GAME_SYSTEM = "game-system";
 
         private readonly string gameSystem;
-        private Dictionary<string, RulesElement> rules = new Dictionary<string, RulesElement>();
-        private List<XElement> rawElements = new List<XElement>();
+        private readonly Dictionary<string, RulesElement> rules = new Dictionary<string, RulesElement>();
+        private readonly List<XElement> rawElements = new List<XElement>();
         internal bool usesLegacySourceAttribute = false;
 
         public PartMerger(string gameSystem)

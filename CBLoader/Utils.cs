@@ -101,7 +101,7 @@ namespace CBLoader
             Environment.OSVersion.Platform == PlatformID.Win32S ||
             Environment.OSVersion.Platform == PlatformID.Win32Windows;
 
-        private static string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
+        private static readonly string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
         public static string GetInstallPath()
         {
             if (!IS_WINDOWS) return null;
@@ -193,8 +193,13 @@ namespace CBLoader
             data.Length > 0 && data[0] == '\uFEFF' ? data.Substring(1, data.Length - 1) : data;
         public static string ParseUTF8(byte[] data) =>
             StripBOM(Encoding.UTF8.GetString(data));
-        public static string HashFile(string filename) =>
-            Convert.ToBase64String(SHA256.Create().ComputeHash(File.ReadAllBytes(filename)));
+        public static string HashFile(string filename)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                return Convert.ToBase64String(sha256.ComputeHash(File.ReadAllBytes(filename)));
+            }
+        }
 
         public static bool ExistsOnPath(string fileName) => 
             GetFullPath(fileName) != null;

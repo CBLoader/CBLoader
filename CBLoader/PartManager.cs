@@ -29,8 +29,7 @@ namespace CBLoader
 
         public override bool Equals(object obj)
         {
-            var info = obj as MergedFileInfo;
-            return info != null && Filename == info.Filename && LastModified == info.LastModified;
+            return obj is MergedFileInfo info && Filename == info.Filename && LastModified == info.LastModified;
         }
         public override int GetHashCode() => 0; // We won't use this.
     }
@@ -110,13 +109,13 @@ namespace CBLoader
     /// </summary>
     internal sealed class PartManager
     {
-        private static XmlSerializer SERIALIZER = new XmlSerializer(typeof(MergeInfo));
+        private static readonly XmlSerializer SERIALIZER = new XmlSerializer(typeof(MergeInfo));
 
         private readonly LoaderOptions options;
         private readonly CryptoInfo cryptoInfo;
 
-        private List<string> mergeOrder = new List<string>();
-        private Dictionary<string, PartStatus> partStatus = new Dictionary<string, PartStatus>();
+        private readonly List<string> mergeOrder = new List<string>();
+        private readonly Dictionary<string, PartStatus> partStatus = new Dictionary<string, PartStatus>();
 
         public string EncryptedPath { get => Path.Combine(options.CBPath, "combined.dnd40.encrypted"); }
         public string MergedPath { get => Path.Combine(options.CachePath, "combined.dnd40.encrypted"); }
@@ -158,9 +157,9 @@ namespace CBLoader
             {
                 var status = partStatus[filename];
                 var updateInfo = sources.Root.Element("UpdateInfo");
-                status.Version = updateInfo != null ? updateInfo.Element("Version").Value : null;
+                status.Version = updateInfo?.Element("Version").Value;
                 var changelog = sources.Root.Element("Changelog");
-                status.Changelog = changelog != null ? changelog.Value : null;
+                status.Changelog = changelog?.Value;
                 return status;
             }
         }
@@ -193,8 +192,10 @@ namespace CBLoader
             stopwatch.Start();
 
             Log.Debug(" - Collecting .part files");
-            MergeInfo currentMergeInfo = new MergeInfo();
-            currentMergeInfo.EncryptionData = cryptoInfo.keyStore;
+            MergeInfo currentMergeInfo = new MergeInfo
+            {
+                EncryptionData = cryptoInfo.keyStore
+            };
             currentMergeInfo.AddFile(EncryptedPath);
             foreach (var part in collectFromDirectories(options.MergeDirectories, "*.part"))
                 currentMergeInfo.AddFile(part);

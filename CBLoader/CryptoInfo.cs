@@ -235,8 +235,7 @@ namespace CBLoader
 
         public override bool Equals(object obj)
         {
-            var info = obj as UpdateKeyInfo;
-            return info != null && Id == info.Id && KeyData.SequenceEqual(info.KeyData);
+            return obj is UpdateKeyInfo info && Id == info.Id && KeyData.SequenceEqual(info.KeyData);
         }
         public override int GetHashCode() => KeyData.GetHashCode() ^ Id.GetHashCode();
     }
@@ -292,12 +291,12 @@ namespace CBLoader
 
     internal sealed class CryptoInfo
     {
-        private static XmlSerializer SERIALIZER = new XmlSerializer(typeof(KeyStore));
+        private static readonly XmlSerializer SERIALIZER = new XmlSerializer(typeof(KeyStore));
 
         private static Guid CB_APP_ID = new Guid("2a1ddbc4-4503-4392-9548-d0010d1ba9b1");
-        private static Regex GUID_REGEX = new Regex("^########-####-####-####-############$".Replace("#", "[a-zA-Z0-9]"));
-        private static Regex UPDATE_REGEX = new Regex("^Update(########-####-####-####-############)$".Replace("#", "[a-zA-Z0-9]"));
-        private static byte[] REGISTRY_CRYPT_ENTROPY = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
+        private static readonly Regex GUID_REGEX = new Regex("^########-####-####-####-############$".Replace("#", "[a-zA-Z0-9]"));
+        private static readonly Regex UPDATE_REGEX = new Regex("^Update(########-####-####-####-############)$".Replace("#", "[a-zA-Z0-9]"));
+        private static readonly byte[] REGISTRY_CRYPT_ENTROPY = new byte[] { 0x19, 0x25, 0x49, 0x62, 12, 0x41, 0x55, 0x1c, 0x15, 0x2f };
 
         private readonly LoaderOptions options;
         public readonly uint expectedDemoHash, expectedNormalHash;

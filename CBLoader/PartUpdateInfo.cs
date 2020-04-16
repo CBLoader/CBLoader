@@ -28,8 +28,8 @@ namespace CBLoader
 
     internal sealed class PartUpdateInfo
     {
-        private Dictionary<string, UpdateVersionInfo> files =
-            new Dictionary<string, UpdateVersionInfo>();
+        private readonly Dictionary<string, UpdateVersionInfo> files =
+                     new Dictionary<string, UpdateVersionInfo>();
 
         public UpdateVersionInfo Get(string partName) => files[partName];
         public void AddFile(string filename, string version) =>
@@ -72,13 +72,13 @@ namespace CBLoader
     {
         private readonly WebClient wc;
 
-        private HashSet<string> downloaded =
+        private readonly HashSet<string> downloaded =
             new HashSet<string>();
-        private Dictionary<string, PartUpdateInfo> newFormatVersions =
+        private readonly Dictionary<string, PartUpdateInfo> newFormatVersions =
             new Dictionary<string, PartUpdateInfo>();
-        private Dictionary<string, string> oldFormatVersions =
+        private readonly Dictionary<string, string> oldFormatVersions =
             new Dictionary<string, string>();
-        private Dictionary<string, Redirect> redirects =
+        private readonly Dictionary<string, Redirect> redirects =
             new Dictionary<string, Redirect>();
 
         public UpdateChecker(WebClient wc)
@@ -95,7 +95,7 @@ namespace CBLoader
                 Log.Debug($" - Checking for updates at {updateUrl}");
 
                 var data = wc.DownloadString(updateUrl);
-                if (data.StartsWith("CBLoader Version File v2"))
+                if (data.StartsWith("CBLoader Version File v2", StringComparison.InvariantCultureIgnoreCase))
                 {
                     var info = new PartUpdateInfo();
                     info.Parse(data);

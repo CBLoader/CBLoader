@@ -15,7 +15,7 @@ namespace CBLoader
     internal sealed class TargetDomainCallback : PersistantRemoteObject
     {
         private string cbDirectory;
-        private Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
+        private readonly Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
 
         private readonly Assembly myAssembly = Assembly.GetAssembly(typeof(TargetDomainCallback));
 
@@ -108,7 +108,7 @@ namespace CBLoader
 
     internal static class ProcessLauncher
     {
-        private static NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
+        private static readonly NamedPermissionSet FULL_TRUST = new NamedPermissionSet("FullTrust");
 
         private static AssemblyDef LoadAssembly(string cbDirectory, string name)
         {
@@ -176,7 +176,7 @@ namespace CBLoader
             exception.HandlerStart = method.Body.Instructions[handlerStart];
         }
 
-        private static string ADD_NAVIGATIONFAILED =
+        private static readonly string ADD_NAVIGATIONFAILED =
             "System.Void System.Windows.Controls.Frame::add_NavigationFailed(System.Windows.Navigation.NavigationFailedEventHandler)";
         private static void InjectChangelogFallback(AssemblyDef assembly, string changelog)
         {

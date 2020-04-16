@@ -81,7 +81,7 @@ namespace CBLoader
         public List<string> IgnoreParts = new List<string>();
         public List<string> ExecArgs = new List<string>();
 
-        private List<Regex> ignoreGlobs = new List<Regex>();
+        private readonly List<Regex> ignoreGlobs = new List<Regex>();
 
         public bool HasWarnings = false;
 
@@ -211,7 +211,7 @@ namespace CBLoader
     /// <summary>
     /// Exceptions of this type are printed directly to console with no stack trace or message type.
     /// </summary>
-    internal sealed class CBLoaderException : Exception
+    public sealed class CBLoaderException : Exception
     {
         public CBLoaderException(string message) : base(message) { }
     }
