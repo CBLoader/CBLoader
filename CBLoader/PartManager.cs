@@ -352,8 +352,16 @@ namespace CBLoader
             Log.Debug($" - Checking index {fi.FullName}");
 
             checkMetadata(uc, obsoleteList, fi, wc, false);
-
             var partIndex = XDocument.Load(fi.FullName);
+            foreach (var redirect in partIndex.Root.Elements("Redirect"))
+            {
+                var from = redirect.Attribute("from");
+                var to = redirect.Attribute("to");
+                if (from != null && to != null)
+                {
+                    uc.AddRedirect(from.Value, to.Value);
+                }
+            }
             foreach (var part in partIndex.Root.Elements("Part"))
             {
                 var partName = part.Element("Filename").Value;

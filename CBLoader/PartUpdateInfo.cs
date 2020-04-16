@@ -58,6 +58,13 @@ namespace CBLoader
         }
     }
 
+    internal sealed class Redirect
+    {
+        public string From;
+        public string To;
+        public bool? Confirmed;
+    }
+
     /// <summary>
     /// A class that checks for updates to part files.
     /// </summary>
@@ -71,6 +78,8 @@ namespace CBLoader
             new Dictionary<string, PartUpdateInfo>();
         private Dictionary<string, string> oldFormatVersions =
             new Dictionary<string, string>();
+        private Dictionary<string, Redirect> redirects =
+            new Dictionary<string, Redirect>();
 
         public UpdateChecker(WebClient wc)
         {
@@ -140,6 +149,14 @@ namespace CBLoader
             if (remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
                 return true;
             return false;
+        }
+
+        internal void AddRedirect(string from, string to)
+        {
+            if (redirects.ContainsKey(from))
+                return;
+            redirects.Add(from, new Redirect() { From = from, To = to });
+
         }
     }
 }
