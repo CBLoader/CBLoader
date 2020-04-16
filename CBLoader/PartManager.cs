@@ -301,9 +301,8 @@ namespace CBLoader
                 if (metadata != null)
                     try
                     {
-                        var address = metadata.Element("V2Address");
-                        if (address == null)
-                            address = metadata.Element("VersionAddress");
+                        var address2 = metadata.Element("V2Address");
+                        var address = metadata.Element("VersionAddress");
 
                         if (address != null)
                         {
@@ -313,7 +312,7 @@ namespace CBLoader
                             else
                             {
                                 var localVersion = metadata.Element("Version").Value;
-                                if (uc.CheckRequiresUpdate(fi.FullName, localVersion, address.Value))
+                                if (uc.CheckRequiresUpdate(fi.FullName, localVersion, address.Value, address2?.Value))
                                 {
                                     Log.Info($" - Downloading update for {fi.Name}");
                                     string dest = Path.Combine(fi.DirectoryName, fi.FullName);

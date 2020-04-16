@@ -101,6 +101,8 @@ namespace CBLoader
         }
         private UpdateVersionInfo getRemoteVersion(string updateUrl, string partFile)
         {
+            if (updateUrl == null)
+                return null;
             downloadVersion(updateUrl);
             if (newFormatVersions.ContainsKey(updateUrl))
                 return newFormatVersions[updateUrl].Get(partFile);
@@ -108,10 +110,10 @@ namespace CBLoader
                 return new UpdateVersionInfo(null, oldFormatVersions[updateUrl]);
             return null;
         }
-        public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl)
+        public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl, string UpdateUrl2)
         {
             var partFile = Path.GetFileName(filename);
-            var remoteVersion = getRemoteVersion(updateUrl, partFile);
+            var remoteVersion = getRemoteVersion(UpdateUrl2, partFile) ?? getRemoteVersion(updateUrl, partFile);
             Version semver = null;
             try
             {
@@ -125,7 +127,11 @@ namespace CBLoader
                     Log.Warn($" - {partFile} has a semantic version, but the remote version doesn't.");
                     return false;
                 }
-                return remoteVersion.SemVer > semver;
+                if (remoteVersion.SemVer > semver)
+                    return true;
+                if (remoteVersion.SemVer == semver && remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
+                    return true;
+                return false;
             }
             if (remoteVersion == null)
                 return false;
