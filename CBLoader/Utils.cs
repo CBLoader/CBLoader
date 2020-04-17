@@ -146,6 +146,17 @@ namespace CBLoader
             }
             return dirty;
         }
+
+        private static void DeleteAssociation(string extension)
+        {
+            var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");
+            var progIdKey = cuClasses.OpenSubKey(extension);
+            if (progIdKey != null)
+            {
+                cuClasses.DeleteSubKeyTree(extension);
+            }
+
+        }
         private static bool addAction(string uniqueId, string actionName, string invoke)
         {
             var cuClasses = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes");

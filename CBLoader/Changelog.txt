@@ -1,8 +1,16 @@
-﻿v1.4.3
+﻿v1.4.4
+* Added support for redirects in the updater.  This should be helpful for anyone who was using parts hosted on domains that are now expired.
+* Always pull missing files from indexes before merging.  This will make the firstrun experience much nicer.
+* Hide the Console Window on Windows 10 whe the Character Builder launches.
+* Added <V2Address> to the UpdateInfo header, so that parts can use V2 indexes without breaking for 1.3 users.
+* Disabled file associations by default, as they were causing Windows Explorer to crash for some users.
 
-* Made the Part Updater smarter at detecting version numbers.  It won't automatically download an updated file with a lower or missing version number.
+
+v1.4.3
+
+* Made the Part Updater smarter at detecting version numbers.  It won't automatically "update" a file to a lower or missing version number.
 * Verify that an updated file can be loaded and parsed before saving it to disk.
-* Automatically attempt to repair Character Builder install was installed with default settings on 64-bit Windows.
+* Automatically attempt to repair a common Character Builder install instalation error on 64-bit Windows.
 * Fixed bug when someone passed an absolute path to a Custom Folder.
 * Fixed bug where launching CBLoader would occasionally restart windows explorer.
 * Fixed regression where subdirectories of Custom folders weren't loaded.
