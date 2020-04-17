@@ -11,6 +11,11 @@
   <Ignore>
     <Part>XXX_part-to-ignore.part</Part>
   </Ignore>
+
+  <!-- The internet is a fickle thing. -->
+  <Redirects>
+    <!-- <Redirect from="https://example.com" to="https://example.net" /> -->
+  </Redirects>
   
   <!--  The directory CBLoader stores its temporary files in. -->
   <BasePath>Cache</BasePath>

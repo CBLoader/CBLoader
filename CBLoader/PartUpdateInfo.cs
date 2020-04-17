@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace CBLoader
 {
@@ -58,19 +59,12 @@ namespace CBLoader
         }
     }
 
-    internal sealed class Redirect
-    {
-        public string From;
-        public string To;
-        public bool? Confirmed;
-    }
-
     /// <summary>
     /// A class that checks for updates to part files.
     /// </summary>
     internal sealed class UpdateChecker
     {
-        private readonly WebClient wc;
+        internal readonly WebClient wc;
 
         private readonly HashSet<string> downloaded =
             new HashSet<string>();
@@ -81,9 +75,11 @@ namespace CBLoader
         private readonly Dictionary<string, Redirect> redirects =
             new Dictionary<string, Redirect>();
 
-        public UpdateChecker(WebClient wc)
+        public UpdateChecker(WebClient wc, List<Redirect> redirects)
         {
-            this.wc = wc;
+            this.wc = wc ?? new WebClient();
+            foreach (var r in redirects)
+                this.redirects[r.From] = r;
         }
 
         private void downloadVersion(string updateUrl)
@@ -112,6 +108,7 @@ namespace CBLoader
         {
             if (updateUrl == null)
                 return null;
+            updateUrl = CheckForRedirect(updateUrl);
             downloadVersion(updateUrl);
             if (newFormatVersions.ContainsKey(updateUrl))
                 return newFormatVersions[updateUrl].Get(partFile);
@@ -119,6 +116,7 @@ namespace CBLoader
                 return new UpdateVersionInfo(null, oldFormatVersions[updateUrl]);
             return null;
         }
+
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl, string UpdateUrl2)
         {
             var partFile = Path.GetFileName(filename);
@@ -157,6 +155,64 @@ namespace CBLoader
                 return;
             redirects.Add(from, new Redirect() { From = from, To = to });
 
+        }
+
+        internal string CheckForRedirect(string updateUrl)
+        {
+            foreach (var prefix in redirects.Keys)
+            {
+                if (!updateUrl.StartsWith(prefix))
+                    continue;
+                var redirect = redirects[prefix];
+                var dest = updateUrl.Replace(prefix, redirect.To);
+                if (!redirect.Confirmed.HasValue)
+                {
+                    if (System.Windows.MessageBox.Show($"Allow Redirect from {updateUrl} to {dest}?", "CBLoader", System.Windows.MessageBoxButton.YesNo) == System.Windows.MessageBoxResult.Yes)
+                    {
+                        redirect.Confirmed = true;
+                        SaveRedirect(redirect);
+                    }
+                    else
+                        redirect.Confirmed = false;
+                }
+                if (redirect.Confirmed == false)
+                    continue;
+                downloadVersion(dest);
+                if (oldFormatVersions.ContainsKey(dest) || newFormatVersions.ContainsKey(dest))
+                    return dest;
+            }
+            return updateUrl;
+        }
+
+        internal string ApplyRedirect(string updateUrl)
+        {
+            foreach (var prefix in redirects.Keys)
+            {
+                if (!updateUrl.StartsWith(prefix))
+                    continue;
+                var redirect = redirects[prefix];
+                var dest = updateUrl.Replace(prefix, redirect.To);
+                if (redirect.Confirmed == true)
+                    return dest;
+            }
+            return updateUrl;
+        }
+
+        private void SaveRedirect(Redirect redirect)
+        {
+            var baseconfigpath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "default.cbconfig");
+            if (File.Exists(baseconfigpath)) // Point the config file at this for future launches
+            {
+                var doc = System.Xml.Linq.XDocument.Load(baseconfigpath);
+                var rds = doc.Root.Element("Redirects");
+                if (rds == null)
+                {
+                    rds = new System.Xml.Linq.XElement("Redirects");
+                    doc.Root.Add(rds);
+                }
+                rds.Add(new System.Xml.Linq.XElement("Redirect", new System.Xml.Linq.XAttribute("from", redirect.From), new System.Xml.Linq.XAttribute("to", redirect.To)));
+                doc.Save(baseconfigpath, System.Xml.Linq.SaveOptions.DisableFormatting);
+            }
         }
     }
 }

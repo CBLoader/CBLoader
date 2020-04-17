@@ -292,7 +292,7 @@ namespace CBLoader
             File.WriteAllText(ChangelogPath, createChangelog(), Encoding.UTF8);
         }
 
-        private void checkMetadata(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool checkObsolete = true)
+        private void CheckMetadata(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, bool checkObsolete = true)
         {
             Log.Debug($" - Checking metadata for {fi.FullName}");
 
@@ -318,7 +318,7 @@ namespace CBLoader
                                     Log.Info($" - Downloading update for {fi.Name}");
                                     string dest = Path.Combine(fi.DirectoryName, fi.FullName);
                                     string temp = Path.Combine(fi.DirectoryName, fi.FullName + ".tmp");
-                                    wc.DownloadFile(metadata.Element("PartAddress").Value, temp);
+                                    uc.wc.DownloadFile(uc.ApplyRedirect(metadata.Element("PartAddress").Value), temp);
                                     try
                                     {
                                         XElement.Load(temp);
@@ -352,7 +352,7 @@ namespace CBLoader
         {
             Log.Debug($" - Checking index {fi.FullName}");
 
-            checkMetadata(uc, obsoleteList, fi, wc, false);
+            CheckMetadata(uc, obsoleteList, fi, false);
             var partIndex = XDocument.Load(fi.FullName);
             foreach (var redirect in partIndex.Root.Elements("Redirect"))
             {
@@ -379,7 +379,7 @@ namespace CBLoader
                     if (options.IsPartIgnored(partName)) continue;
                     if (!File.Exists(outputFile) || forced)
                     {
-                        var partAddress = part.Element("PartAddress").Value;
+                        var partAddress = uc.ApplyRedirect(part.Element("PartAddress").Value);
                         Log.Info($" - Downloading {partName}");
                         var data = wc.DownloadData(partAddress);
                         var xmlString = Utils.ParseUTF8(data);
@@ -430,7 +430,7 @@ namespace CBLoader
         /// </summary>
         /// <param name="forced">Whether to always redownload files from indexes.</param>
         /// <param name="background">Whether this is being run in the background.</param>
-        public void DoUpdates(bool forced, bool background, bool indexesOnly)
+        public void DoUpdates(bool forced, bool background, bool indexesOnly, UpdateChecker uc)
         {
             try
             {
@@ -444,8 +444,6 @@ namespace CBLoader
                     return;
                 }
 
-                var wc = new WebClient();
-                var uc = new UpdateChecker(wc);
                 var customFiles = collectFromDirectories(options.UpdateDirectories, "*.part");
                 var indexes = collectFromDirectories(options.UpdateDirectories, "*.index");
 
@@ -454,9 +452,9 @@ namespace CBLoader
 
                 var obsoleteList = new HashSet<string>();
                 foreach (var fi in indexes)
-                    checkIndex(uc, obsoleteList, fi, wc, forced);
+                    checkIndex(uc, obsoleteList, fi, uc.wc, forced);
                 foreach (var fi in customFiles)
-                    checkMetadata(uc, obsoleteList, fi, wc);
+                    CheckMetadata(uc, obsoleteList, fi);
                 foreach (var obsolete in obsoleteList)
                     deleteObsolete(obsolete);
 

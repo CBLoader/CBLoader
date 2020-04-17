@@ -10,6 +10,16 @@ using System.Xml.Serialization;
 
 namespace CBLoader
 {
+    [Serializable]
+    public sealed class Redirect
+    {
+        [XmlAttribute("from")]
+        public string From;
+        [XmlAttribute("to")]
+        public string To;
+        public bool? Confirmed;
+    }
+
     public sealed class PartFolders
     {
         [XmlAttribute] public bool NoUpdate;
@@ -28,12 +38,16 @@ namespace CBLoader
 
     [XmlRoot("Settings", IsNullable = false)]
     public sealed class OptionsFileSchema
+
     {
         // Current list options
         [XmlArrayItem("Custom", IsNullable = false)]
         public PartFolders[] Folders;
         [XmlArrayItem("Part", IsNullable = false)]
         public string[] Ignore;
+
+        [XmlArrayItem("Redirect", IsNullable = false)]
+        public Redirect[] Redirects;
 
         // Current string options
         public string KeyFile;
@@ -77,6 +91,7 @@ namespace CBLoader
 
         public List<string> MergeDirectories = new List<string>();
         public List<string> UpdateDirectories = new List<string>();
+        public List<Redirect> Redirects = new List<Redirect>();
 
         public List<string> IgnoreParts = new List<string>();
         public List<string> ExecArgs = new List<string>();
@@ -136,6 +151,7 @@ namespace CBLoader
                     AddPath(processPath(configRoot, folder.Path),
                             !folder.NoUpdateSpecified || !folder.NoUpdate);
             if (data.Ignore != null) IgnoreParts.AddRange(data.Ignore.Select(x => x.Trim()));
+            if (data.Redirects != null) Redirects.AddRange(data.Redirects.Select(r => new Redirect { From = r.From, To = r.To, Confirmed = true }));
 
             if (data.KeyFile != null) KeyFile = processPath(configRoot, data.KeyFile);
             if (data.BasePath != null) CachePath = processPath(configRoot, data.BasePath);
@@ -388,9 +404,10 @@ namespace CBLoader
 
             if (options.SetFileAssociations)
                 Utils.UpdateRegistry();
-            fileManager.DoUpdates(options.ForceUpdate, false, true);
+            var uc = new UpdateChecker(null, options.Redirects);
+            fileManager.DoUpdates(options.ForceUpdate, false, true, uc);
             if (options.CheckForUpdates && options.UpdateFirst)
-                fileManager.DoUpdates(options.ForceUpdate, false, false);
+                fileManager.DoUpdates(options.ForceUpdate, false, false, uc);
             fileManager.MergeFiles(options.ForceRemerge);
             if (options.CreateUpdateIndexFiles)
                 fileManager.GenerateUpdateIndexes();
@@ -398,7 +415,7 @@ namespace CBLoader
                 programThread =  ProcessLauncher.StartProcess(options, options.ExecArgs.ToArray(), 
                                                               fileManager.MergedPath, fileManager.ChangelogPath);
             if (options.CheckForUpdates && !options.UpdateFirst)
-                fileManager.DoUpdates(options.ForceUpdate, true, false);
+                fileManager.DoUpdates(options.ForceUpdate, true, false, uc);
             if (!options.CheckForUpdates)
                 Log.Warn("Updates are currently disabled");
             if (programThread != null)
