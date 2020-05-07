@@ -26,7 +26,7 @@ namespace CBInstaller
                 MaybeUninstall();
             if (string.IsNullOrWhiteSpace(Utils.GetInstallPath()))
                 Install();
-            Version installed = new Version();
+            Utils.ConfigureTLS12();
             if (Directory.Exists(progdata))
             {
                 string logfile = Path.Combine(progdata, "CBLoader.log");
@@ -35,17 +35,16 @@ namespace CBInstaller
                     try
                     {
                         string[] array = File.ReadAllLines(logfile);
-                        installed = Version.Parse(Regex.Match(array[0], "CBLoader version ([0-9a-z\\.]+)").Groups[1].Value);
+                        Version installed = Version.Parse(Regex.Match(array[0], "CBLoader version ([0-9a-z\\.]+)").Groups[1].Value);
+                        CheckForUpdate(installed);
                     }
                     catch (Exception)
                     {
                     }
                 }
             }
-            Utils.ConfigureTLS12();
-            var update = Utils.CheckForUpdates(installed);
-            if (update != null)
-                Download(update);
+            else
+                CheckForUpdate(new Version());
             if (!File.Exists("WotC.index"))
                 GetIndex("WotC");
             foreach (var index in Directory.GetFiles(Environment.CurrentDirectory, "*.index"))
@@ -54,7 +53,15 @@ namespace CBInstaller
                 if (!File.Exists(path))
                     File.Copy(index, path);
             }
+            Environment.CurrentDirectory = progdata;
             Process.Start(new ProcessStartInfo(Path.Combine(progdata, "CBLoader.exe")));
+        }
+
+        private static void CheckForUpdate(Version installed)
+        {
+            var update = Utils.CheckForUpdates(installed);
+            if (update != null)
+                Download(update);
         }
 
         private static void MaybeUninstall()
