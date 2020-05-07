@@ -1,4 +1,11 @@
-﻿v1.4.4
+﻿v1.4.5
+* Fix alert for new versions of CBLoader
+* Fix bug when HeroicDemo is missing.  For real this time.
+* Due to popular demand, DumpTemporaryFiles is enabled by default
+* We now have a One-Click installer.  It'll handle installing Character Builder for you.
+
+
+v1.4.4
 * Added support for redirects in the updater.  This should be helpful for anyone who was using parts hosted on domains that are now expired.
 * Always pull missing files from indexes before merging.  This will make the firstrun experience much nicer.
 * Hide the Console Window on Windows 10 whe the Character Builder launches.
