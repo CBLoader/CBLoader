@@ -28,3 +28,10 @@ jobs:
         name: ${{ matrix.configuration }}
         # Directory containing files to upload
         path: CBLoader/bin/${{ matrix.configuration }}/
+    - name: Upload Installer
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        # Artifact name
+        name: ${{ matrix.configuration }}
+        # Directory containing files to upload
+        path: CBInstaller/bin/${{ matrix.configuration }}/CBInstaller.exe

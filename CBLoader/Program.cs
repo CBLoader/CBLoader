@@ -427,7 +427,7 @@ namespace CBLoader
         {
             Utils.ConfigureTLS12();
             Console.WriteLine($"CBLoader version {Version}");
-            Utils.CheckForUpdates();
+            Utils.CheckForUpdates(typeof(Program).Assembly.GetName().Version);
             Console.WriteLine();
             Log.InitLogging();
             Log.Trace($"CBLoader version {Version}");

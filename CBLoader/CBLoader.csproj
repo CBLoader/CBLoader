@@ -105,6 +105,7 @@
     <Compile Include="PartLog.cs" />
     <Compile Include="SimpleJson.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="UtilsShared.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
