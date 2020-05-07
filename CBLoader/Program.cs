@@ -126,7 +126,7 @@ namespace CBLoader
                 AddPath(subdir, update);
         }
 
-        private void deprecatedCheck(string filename, bool exists, string tag, string extra = null)
+        private void DeprecatedCheck(string filename, bool exists, string tag, string extra = null)
         {
             if (!exists) return;
             if (extra != null) extra = $"\n{extra}";
@@ -134,7 +134,7 @@ namespace CBLoader
             Log.Warn($"Configuration file {filename} has option <{tag}>. This option is no longer supported.{extra}");
             HasWarnings = true;
         }
-        private string processPath(string configRoot, string relative)
+        private string ProcessPath(string configRoot, string relative)
         {
             string expanded = Environment.ExpandEnvironmentVariables(relative.Trim());
             if (Path.IsPathRooted(expanded))
@@ -148,14 +148,14 @@ namespace CBLoader
 
             if (data.Folders != null)
                 foreach (var folder in data.Folders)
-                    AddPath(processPath(configRoot, folder.Path),
+                    AddPath(ProcessPath(configRoot, folder.Path),
                             !folder.NoUpdateSpecified || !folder.NoUpdate);
             if (data.Ignore != null) IgnoreParts.AddRange(data.Ignore.Select(x => x.Trim()));
             if (data.Redirects != null) Redirects.AddRange(data.Redirects.Select(r => new Redirect { From = r.From, To = r.To, Confirmed = true }));
 
-            if (data.KeyFile != null) KeyFile = processPath(configRoot, data.KeyFile);
-            if (data.BasePath != null) CachePath = processPath(configRoot, data.BasePath);
-            if (data.CharacterBuilderPath != null) CBPath = processPath(configRoot, data.CharacterBuilderPath);
+            if (data.KeyFile != null) KeyFile = ProcessPath(configRoot, data.KeyFile);
+            if (data.BasePath != null) CachePath = ProcessPath(configRoot, data.BasePath);
+            if (data.CharacterBuilderPath != null) CBPath = ProcessPath(configRoot, data.CharacterBuilderPath);
 
             if (CachePath == null) CachePath = configRoot;
 
@@ -171,11 +171,11 @@ namespace CBLoader
 
             LoadedConfigPath = filename;
             
-            deprecatedCheck(filename, data.FastModeSpecified, "FastMode",
+            DeprecatedCheck(filename, data.FastModeSpecified, "FastMode",
                             "The new merge logic should be fast enough to not require it.");
-            deprecatedCheck(filename, data.NewMergeLogicSpecified, "NewMergeLogic",
+            DeprecatedCheck(filename, data.NewMergeLogicSpecified, "NewMergeLogic",
                             "A faster merge algorithm is always used now.");
-            deprecatedCheck(filename, data.ShowChangelog, "ShowChangelog",
+            DeprecatedCheck(filename, data.ShowChangelog, "ShowChangelog",
                             "Changelogs are always shown on the Character Builder title page.");
         }
         public bool AddOptionFile(string filename)
@@ -200,7 +200,7 @@ namespace CBLoader
             return true;
         }
 
-        private bool invalidOptions(string result)
+        private bool InvalidOptions(string result)
         {
             Log.Error(result);
             return false;
@@ -245,13 +245,13 @@ namespace CBLoader
 
         }
         
-        private static void setUniqueString(ref string target, string flag, string value)
+        private static void SetUniqueString(ref string target, string flag, string value)
         {
             if (target != null)
                 throw new OptionException($"Cannot specify more than one {flag} flag.", flag);
             target = value;
         }
-        private static LoaderOptions processOptions(string[] args)
+        private static LoaderOptions ProcessOptions(string[] args)
         {
             var options = new LoaderOptions();
 
@@ -283,7 +283,7 @@ namespace CBLoader
                 { "v|verbose", "Enables additional debugging output.",
                     value => verboseMode = true },
                 { "c|config=", "A config file to use rather than the default.",
-                    value => setUniqueString(ref configFile, "-c", value) },
+                    value => SetUniqueString(ref configFile, "-c", value) },
                 { "no-config", "Do not use a configuration file.",
                     value => noConfig = true },
                 { "a|set-assocations", "Associate .dnd4e and .cbconfig with CBLoader.",
@@ -291,9 +291,9 @@ namespace CBLoader
                 "",
                 "Path management:",
                 { "u|cache-path=", "Sets where to write temporary files.",
-                    value => setUniqueString(ref cachePath, "-u", value) },
+                    value => SetUniqueString(ref cachePath, "-u", value) },
                 { "cb-path=", "Sets where character builder is installed.",
-                    value => setUniqueString(ref cbPath, "--cb-path", value) }, 
+                    value => SetUniqueString(ref cbPath, "--cb-path", value) }, 
                 { "f|folder=", "Adds a directory to search for custom rules in.",
                     value => options.AddPath(value) },
                 { "ignore-part=", "Adds a part file to ignore.",
@@ -301,10 +301,10 @@ namespace CBLoader
                 "",
                 "Keyfile options:",
                 { "k|key-file=", "Uses the given keyfile.",
-                    value => setUniqueString(ref keyFile, "-k", value) },
+                    value => SetUniqueString(ref keyFile, "-k", value) },
                 { "r=", "Updates a keyfile at the given path. Implies -k.",
                     value => {
-                        setUniqueString(ref keyFile, "-r", value);
+                        SetUniqueString(ref keyFile, "-r", value);
                         writeKeyFile = true;
                     } },
                 "",
@@ -387,7 +387,7 @@ namespace CBLoader
 
         private static void main(string[] args)
         {
-            var options = processOptions(args);
+            var options = ProcessOptions(args);
             if (options == null) return;
 
             if (options.VerboseMode) Log.VerboseMode = true;
@@ -408,7 +408,7 @@ namespace CBLoader
             fileManager.DoUpdates(options.ForceUpdate, false, true, uc);
             if (options.CheckForUpdates && options.UpdateFirst)
                 fileManager.DoUpdates(options.ForceUpdate, false, false, uc);
-            fileManager.MergeFiles(options.ForceRemerge);
+            fileManager.MergeFiles();
             if (options.CreateUpdateIndexFiles)
                 fileManager.GenerateUpdateIndexes();
             if (options.LaunchBuilder)

@@ -145,8 +145,7 @@ namespace CBLoader
                     method.ReturnType.FullName == exception_ty)
                 {
                     Log.Trace($"     - Disabling {method.FullName}");
-                    method.Body = new CilBody();
-                    method.Body.MaxStack = 1;
+                    method.Body = new CilBody { MaxStack = 1 };
                     method.Body.Instructions.Add(OpCodes.Ldarg_0.ToInstruction());
                     method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
                 }
@@ -215,8 +214,7 @@ namespace CBLoader
             
             var method = type.FindProperty("CBInfoUrl").GetMethod;
 
-            method.Body = new CilBody();
-            method.Body.MaxStack = 1;
+            method.Body = new CilBody { MaxStack = 1 };
             method.Body.Instructions.Add(OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("GetCallbackPath"))));
             method.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
         }
@@ -314,11 +312,13 @@ namespace CBLoader
             redirectPath = Path.GetFullPath(redirectPath);
 
             Log.Debug(" - Creating application domain.");
-            var setup = new AppDomainSetup();
-            setup.ApplicationBase = AppDomain.CurrentDomain.BaseDirectory;
-            setup.ApplicationName = "D&D 4E Character Builder";
-            setup.DisallowCodeDownload = true;
-            setup.DisallowPublisherPolicy = true;
+            var setup = new AppDomainSetup
+            {
+                ApplicationBase = AppDomain.CurrentDomain.BaseDirectory,
+                ApplicationName = "D&D 4E Character Builder",
+                DisallowCodeDownload = true,
+                DisallowPublisherPolicy = true
+            };
             // For some reason, unless we set PrivateBinPathProbe, D20RulesEngine.dll bypasses ResolveAssembly
             setup.PrivateBinPath = setup.ApplicationBase;
             setup.PrivateBinPathProbe = "true";

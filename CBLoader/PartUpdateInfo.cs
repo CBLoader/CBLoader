@@ -82,7 +82,7 @@ namespace CBLoader
                 this.redirects[r.From] = r;
         }
 
-        private void downloadVersion(string updateUrl)
+        private void DownloadVersion(string updateUrl)
         {
             if (downloaded.Contains(updateUrl)) return;
             downloaded.Add(updateUrl);
@@ -104,12 +104,12 @@ namespace CBLoader
                 Log.Debug($"Failed to load update info at {updateUrl}.", e);
             }
         }
-        private UpdateVersionInfo getRemoteVersion(string updateUrl, string partFile)
+        private UpdateVersionInfo GetRemoteVersion(string updateUrl, string partFile)
         {
             if (updateUrl == null)
                 return null;
             updateUrl = CheckForRedirect(updateUrl);
-            downloadVersion(updateUrl);
+            DownloadVersion(updateUrl);
             if (newFormatVersions.ContainsKey(updateUrl))
                 return newFormatVersions[updateUrl].Get(partFile);
             if (oldFormatVersions.ContainsKey(updateUrl))
@@ -120,7 +120,7 @@ namespace CBLoader
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl, string UpdateUrl2)
         {
             var partFile = Path.GetFileName(filename);
-            var remoteVersion = getRemoteVersion(UpdateUrl2, partFile) ?? getRemoteVersion(updateUrl, partFile);
+            var remoteVersion = GetRemoteVersion(UpdateUrl2, partFile) ?? GetRemoteVersion(updateUrl, partFile);
             Version semver = null;
             try
             {
@@ -177,7 +177,7 @@ namespace CBLoader
                 }
                 if (redirect.Confirmed == false)
                     continue;
-                downloadVersion(dest);
+                DownloadVersion(dest);
                 if (oldFormatVersions.ContainsKey(dest) || newFormatVersions.ContainsKey(dest))
                     return dest;
             }

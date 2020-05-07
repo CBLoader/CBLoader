@@ -134,15 +134,15 @@ namespace CBLoader
                 Directory.CreateDirectory(options.CachePath);
         }
 
-        private static FileInfo[] getFromDirectory(string fn, string glob) =>
+        private static FileInfo[] GetFromDirectory(string fn, string glob) =>
             Directory.Exists(fn) ? new DirectoryInfo(fn).GetFiles(glob) : new FileInfo[0];
-        private static FileInfo[] collectFromDirectories(IEnumerable<string> directories, params string[] glob) =>
-            directories.SelectMany(dir => glob.SelectMany(x => getFromDirectory(dir, x))).OrderBy(x => x.Name).ToArray();
+        private static FileInfo[] CollectFromDirectories(IEnumerable<string> directories, params string[] glob) =>
+            directories.SelectMany(dir => glob.SelectMany(x => GetFromDirectory(dir, x))).OrderBy(x => x.Name).ToArray();
 
-        private static FileInfo findPart(IEnumerable<string> directories, string fn) =>
+        private static FileInfo FindPart(IEnumerable<string> directories, string fn) =>
             directories.Select(dir => new FileInfo(Path.Combine(dir, fn))).FirstOrDefault(fi => fi.Exists);
 
-        private PartStatus initPartStatus(string filename, XDocument sources)
+        private PartStatus InitPartStatus(string filename, XDocument sources)
         {
             filename = Path.GetFullPath(filename);
 
@@ -167,7 +167,7 @@ namespace CBLoader
         /// <summary>
         /// Generates the log file shown in the Character Builder title page.
         /// </summary>
-        private string createChangelog()
+        private string CreateChangelog()
         {
             var partLog = new PartLog();
             foreach (var modulePath in mergeOrder)
@@ -185,7 +185,7 @@ namespace CBLoader
         /// the update log state tracking will break.)
         /// <param name="forced">Whether to ignore the current merge state.</param>
         /// </summary>
-        public void MergeFiles(bool forced)
+        public void MergeFiles()
         {
             Log.Info("Updating merged game data.");
             var stopwatch = new Stopwatch();
@@ -197,7 +197,7 @@ namespace CBLoader
                 EncryptionData = cryptoInfo.keyStore
             };
             currentMergeInfo.AddFile(EncryptedPath);
-            foreach (var part in collectFromDirectories(options.MergeDirectories, "*.part"))
+            foreach (var part in CollectFromDirectories(options.MergeDirectories, "*.part"))
                 currentMergeInfo.AddFile(part);
             
             var doMerge = true;
@@ -244,9 +244,9 @@ namespace CBLoader
             Log.Debug();
         }
         
-        private void addToMerger(string filename, PartMerger merger, XDocument document)
+        private void AddToMerger(string filename, PartMerger merger, XDocument document)
         {
-            initPartStatus(filename, document).wasMerged = true;
+            InitPartStatus(filename, document).wasMerged = true;
             merger.ProcessDocument(document);
         }
         private void MergeFiles(MergeInfo mergeInfo)
@@ -264,11 +264,11 @@ namespace CBLoader
                             var data = new StreamReader(stream, Encoding.UTF8).ReadToEnd();
                             if (CryptoUtils.IsXmlPatched(data))
                                 Log.Warn("   - Warning: This file has already been patched by CBLoader!!");
-                            addToMerger(filename, merger, XDocument.Load(new StringReader(data)));
+                            AddToMerger(filename, merger, XDocument.Load(new StringReader(data)));
                         }
                         break;
                     case ".part":
-                        addToMerger(filename, merger, XDocument.Load(filename));
+                        AddToMerger(filename, merger, XDocument.Load(filename));
                         break;
                     default:
                         Log.Warn($" - Attempt to merge file with unknown extension: {filename}");
@@ -289,7 +289,7 @@ namespace CBLoader
             }
 
             Log.Info(" - Saving changelog to disk");
-            File.WriteAllText(ChangelogPath, createChangelog(), Encoding.UTF8);
+            File.WriteAllText(ChangelogPath, CreateChangelog(), Encoding.UTF8);
         }
 
         private void CheckMetadata(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, bool checkObsolete = true)
@@ -324,7 +324,7 @@ namespace CBLoader
                                         XElement.Load(temp);
                                         File.Delete(dest);
                                         File.Move(temp, dest);
-                                        initPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
+                                        InitPartStatus(fi.FullName, XDocument.Load(fi.FullName)).wasUpdated = true;
                                     }
                                     catch (Exception c)
                                     {
@@ -348,7 +348,7 @@ namespace CBLoader
             }
         }
         
-        private void checkIndex(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool forced)
+        private void CheckIndex(UpdateChecker uc, HashSet<string> obsoleteList, FileInfo fi, WebClient wc, bool forced)
         {
             Log.Debug($" - Checking index {fi.FullName}");
 
@@ -386,10 +386,10 @@ namespace CBLoader
                         var xmlObj = XDocument.Load(XmlReader.Create(new StringReader(xmlString)));
 
                         File.WriteAllBytes(outputFile, data);
-                        initPartStatus(outputFile, xmlObj).wasAdded = true;
+                        InitPartStatus(outputFile, xmlObj).wasAdded = true;
                         
                         if (Path.GetExtension(outputFile).ToLower() == ".part")
-                            checkIndex(uc, obsoleteList, new FileInfo(outputFile), wc, forced);
+                            CheckIndex(uc, obsoleteList, new FileInfo(outputFile), wc, forced);
                     }
                 }
                 catch (WebException e)
@@ -413,12 +413,12 @@ namespace CBLoader
             }
         }
 
-        private void deleteObsolete(string filename)
+        private void DeleteObsolete(string filename)
         {
             if (!File.Exists(filename)) return;
 
             Log.Info($" - Deleting obsoleted file {filename}");
-            initPartStatus(filename, XDocument.Load(filename)).wasObsoleted = true;
+            InitPartStatus(filename, XDocument.Load(filename)).wasObsoleted = true;
             File.Delete(filename);
         }
 
@@ -444,19 +444,19 @@ namespace CBLoader
                     return;
                 }
 
-                var customFiles = collectFromDirectories(options.UpdateDirectories, "*.part");
-                var indexes = collectFromDirectories(options.UpdateDirectories, "*.index");
+                var customFiles = CollectFromDirectories(options.UpdateDirectories, "*.part");
+                var indexes = CollectFromDirectories(options.UpdateDirectories, "*.index");
 
                 if (indexesOnly)
                     customFiles = new FileInfo[0];
 
                 var obsoleteList = new HashSet<string>();
                 foreach (var fi in indexes)
-                    checkIndex(uc, obsoleteList, fi, uc.wc, forced);
+                    CheckIndex(uc, obsoleteList, fi, uc.wc, forced);
                 foreach (var fi in customFiles)
                     CheckMetadata(uc, obsoleteList, fi);
                 foreach (var obsolete in obsoleteList)
-                    deleteObsolete(obsolete);
+                    DeleteObsolete(obsolete);
 
                 stopwatch.Stop();
                 Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
@@ -468,7 +468,7 @@ namespace CBLoader
             }
         }
 
-        private static void tryAddUpdate(PartUpdateInfo info, string filename)
+        private static void TryAddUpdate(PartUpdateInfo info, string filename)
         {
             try
             {
@@ -488,11 +488,11 @@ namespace CBLoader
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var indexes = collectFromDirectories(options.MergeDirectories, "*.index");
+            var indexes = CollectFromDirectories(options.MergeDirectories, "*.index");
             foreach (var index in indexes)
             {
                 var updateData = new PartUpdateInfo();
-                tryAddUpdate(updateData, index.FullName);
+                TryAddUpdate(updateData, index.FullName);
                 var partIndex = XDocument.Load(index.FullName);
                 foreach (var part in partIndex.Root.Elements("Part"))
                 {
@@ -504,9 +504,9 @@ namespace CBLoader
                     }
                     var fullPath = Path.Combine(index.Directory.FullName, partName);
                     if (!File.Exists(fullPath)) // Uh Oh.
-                        fullPath = findPart(options.MergeDirectories, partName)?.FullName;
+                        fullPath = FindPart(options.MergeDirectories, partName)?.FullName;
                     if (fullPath != null)
-                        tryAddUpdate(updateData, fullPath);
+                        TryAddUpdate(updateData, fullPath);
                     else
                         Log.Warn($"{index.Name} references {partName}, but it doesn't exist");
                 }
