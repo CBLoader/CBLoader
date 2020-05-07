@@ -98,41 +98,9 @@ namespace CBLoader
         }
     }
 
-    internal static class Utils
+    internal static partial class Utils
     {
-        public const SslProtocols _Tls12 = (SslProtocols)0x00000C00;
-        public const SecurityProtocolType Tls12 = (SecurityProtocolType)_Tls12;
-        public static void ConfigureTLS12()
-        {
-            ServicePointManager.SecurityProtocol = Tls12;
-        }
-
-        internal static bool IS_WINDOWS =
-            Environment.OSVersion.Platform == PlatformID.Win32NT ||
-            Environment.OSVersion.Platform == PlatformID.Win32S ||
-            Environment.OSVersion.Platform == PlatformID.Win32Windows;
-
-        private static readonly string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
-        public static string GetInstallPath()
-        {
-            if (IS_WINDOWS)
-            {
-                var reg = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{CB_INSTALL_ID}");
-                if (reg != null) return reg.GetValue("InstallLocation").ToString();
-            }
-
-            var searchPath = new string[] {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Character Builder"), // Subdir
-                AppDomain.CurrentDomain.BaseDirectory, // Same dir
-                @"C:\Users\WDAGUtilityAccount\Desktop\Character Builder", // Windows Sandbox
-            };
-            foreach (var local in searchPath)
-            {
-                if (File.Exists(Path.Combine(local, "CharacterBuilder.exe")))
-                    return local;
-            }
-            return null;
-        }
+      
 
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -186,37 +154,6 @@ namespace CBLoader
             return progIdKey
                 .CreateSubKey("shell").CreateSubKey(actionName).CreateSubKey("command")
                 .MaybeSetValue("", invoke);
-        }
-
-        public static string CheckForUpdates()
-        {
-            var ver = typeof(Program).Assembly.GetName().Version;
-            
-            var wc = new WebClient();
-            wc.Headers["User-Agent"] = "CBLoader-Update-Checker";
-            try {
-                var json = wc.DownloadString("http://api.github.com/repos/CBLoader/CBLoader/releases");
-                var releases = SimpleJSON.JSON.Parse(json);
-                foreach (var rel in releases.Children)
-                {
-                    if (rel["prerelease"] == true)
-                        continue;
-                    var rs = rel["tag_name"].Value.Trim('v');
-                    var remote = new Version(rs);
-                    if (remote > ver)
-                    {
-                        Console.WriteLine("A new version of CBLoader is available.");
-                        Console.WriteLine(rel["html_url"].Value);
-                        return rel["html_url"].Value;
-                    }
-                    return null;
-                }
-            }
-            catch (WebException c)
-            {
-                return null;
-            }
-            return null;
         }
 
         /// <summary>
