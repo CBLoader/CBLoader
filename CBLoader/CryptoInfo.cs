@@ -302,7 +302,7 @@ namespace CBLoader
         public readonly uint expectedDemoHash, expectedNormalHash;
         public readonly KeyStore keyStore = new KeyStore();
 
-        private void processUpdateFile(Guid appGuid, string filename, bool isHeroicUpdate = false)
+        private void ProcessUpdateFile(Guid appGuid, string filename, bool isHeroicUpdate = false)
         {
             if (!File.Exists(filename)) {
                 if (isHeroicUpdate)
@@ -345,7 +345,7 @@ namespace CBLoader
             if (isHeroicUpdate && (keyStore.WriteGuid == null || keyStore.Get(keyStore.WriteGuid) == null))
                 throw new CBLoaderException($"Key file {filename} is not valid.");
         }
-        private void loadRegistryKeys(Guid appGuid)
+        private void LoadRegistryKeys(Guid appGuid)
         {
             if (!Utils.IS_WINDOWS) return;
 
@@ -379,10 +379,15 @@ namespace CBLoader
 
             // This is intentionally loaded first, so there's a chance to override it from other sources.
             if (options.KeyFile != null)
-                processUpdateFile(CB_APP_ID, options.KeyFile);
+                ProcessUpdateFile(CB_APP_ID, options.KeyFile);
 
-            processUpdateFile(CB_APP_ID, Path.Combine(options.CBPath, "HeroicDemo.update"), true);
-            loadRegistryKeys(CB_APP_ID);
+            string heroicDemoPath = Path.Combine(options.CBPath, "HeroicDemo.update");
+            if (File.Exists(heroicDemoPath))
+            {
+                ProcessUpdateFile(CB_APP_ID, heroicDemoPath, true);
+            }
+
+            LoadRegistryKeys(CB_APP_ID);
 
             var regPatcherPath = Path.Combine(options.CBPath, "RegPatcher.dat");
             if (File.Exists(regPatcherPath))
@@ -391,7 +396,7 @@ namespace CBLoader
                 keyStore.FallbackKey = Convert.FromBase64String(File.ReadAllText(regPatcherPath));
             }
 
-            if (options.WriteKeyFile) saveKeyFile();
+            if (options.WriteKeyFile) SaveKeyFile();
 
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
@@ -407,7 +412,7 @@ namespace CBLoader
             return CryptoUtils.GetEncryptingStream(s, CB_APP_ID, id, this.keyStore.Get(id));
         }
         
-        private void saveKeyFile()
+        private void SaveKeyFile()
         {
             Log.Debug(" - Writing key file.");
             using (var sw = new StreamWriter(File.Open(options.KeyFile, FileMode.Create), Encoding.UTF8))
