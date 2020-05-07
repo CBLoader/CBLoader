@@ -5,12 +5,15 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace CBInstaller
 {
@@ -18,6 +21,7 @@ namespace CBInstaller
     {
         static readonly string progdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "CBLoader");
         static readonly string custom = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader");
+        private static Version installed;
 
         [STAThread]
         static void Main(string[] args)
@@ -27,7 +31,7 @@ namespace CBInstaller
             if (string.IsNullOrWhiteSpace(Utils.GetInstallPath()))
                 Install();
             Utils.ConfigureTLS12();
-            if (Directory.Exists(progdata))
+            if (Directory.Exists(progdata) && File.Exists(Path.Combine(progdata, "CBLoader.exe")))
             {
                 string logfile = Path.Combine(progdata, "CBLoader.log");
                 if (File.Exists(logfile))
@@ -35,7 +39,7 @@ namespace CBInstaller
                     try
                     {
                         string[] array = File.ReadAllLines(logfile);
-                        Version installed = Version.Parse(Regex.Match(array[0], "CBLoader version ([0-9a-z\\.]+)").Groups[1].Value);
+                        installed = Version.Parse(Regex.Match(array[0], "CBLoader version ([0-9a-z\\.]+)").Groups[1].Value);
                         CheckForUpdate(installed);
                     }
                     catch (Exception)
@@ -55,6 +59,12 @@ namespace CBInstaller
             }
             Environment.CurrentDirectory = progdata;
             Process.Start(new ProcessStartInfo(Path.Combine(progdata, "CBLoader.exe")));
+
+            var installPath = Path.Combine(progdata, "CBInstaller.exe");
+            if (Assembly.GetExecutingAssembly().Location != installPath)
+            {
+                InstallSelf(installPath);
+            }
         }
 
         private static void CheckForUpdate(Version installed)
@@ -96,6 +106,7 @@ namespace CBInstaller
 
                 }
             }
+            installed = update.Version;
         }
 
         private static void Install()
@@ -151,12 +162,24 @@ namespace CBInstaller
                     throw new ArgumentException("Corrupted Oct2010 patch");
                 file.Read(zip, 0, 0x309FE96);
             }
-            string configreadable = UTF8Encoding.UTF8.GetString(config);
+            string configreadable = Encoding.UTF8.GetString(config);
             configreadable = configreadable.Replace(@"C:\Program Files\Wizards of the Coast\Character Builder", cbpath.Trim('\\'));
-            config = UTF8Encoding.UTF8.GetBytes(configreadable);
+            config = Encoding.UTF8.GetBytes(configreadable);
             File.WriteAllBytes(PatchedPath, sfx.Concat(config).Concat(zip).ToArray());
             Run(new ProcessStartInfo(PatchedPath, $"-y"));
+        }
 
+        private static void InstallSelf(string self)
+        {
+            File.Copy(Assembly.GetExecutingAssembly().Location, self, true);
+            IShellLink link = (IShellLink)new ShellLink();
+            link.SetDescription($"Character Builder with CBLoader {installed?.ToString() ?? ""}");
+            link.SetPath(self);
+            link.SetIconLocation(Path.Combine(progdata, "CBLoader.exe"), 0);
+
+            IPersistFile file = (IPersistFile)link;
+            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            file.Save(Path.Combine(desktopPath, "CBLoader.lnk"), false);
         }
 
         private static void Elevate()
@@ -215,5 +238,36 @@ namespace CBInstaller
                 Console.WriteLine(c);
             }
         }
+    }
+
+    [ComImport]
+    [Guid("00021401-0000-0000-C000-000000000046")]
+    internal class ShellLink
+    {
+    }
+
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("000214F9-0000-0000-C000-000000000046")]
+    internal interface IShellLink
+    {
+        void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, out IntPtr pfd, int fFlags);
+        void GetIDList(out IntPtr ppidl);
+        void SetIDList(IntPtr pidl);
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
+        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cchMaxPath);
+        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
+        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cchMaxPath);
+        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
+        void GetHotkey(out short pwHotkey);
+        void SetHotkey(short wHotkey);
+        void GetShowCmd(out int piShowCmd);
+        void SetShowCmd(int iShowCmd);
+        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
+        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
+        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, int dwReserved);
+        void Resolve(IntPtr hwnd, int fFlags);
+        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
     }
 }
