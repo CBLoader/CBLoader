@@ -163,6 +163,7 @@ namespace CBLoader
         public static void UpdateRegistry()
         {
             if (!IS_WINDOWS) return;
+            return;
 
             Log.Info("Setting file associations.");
             var stopwatch = new Stopwatch();

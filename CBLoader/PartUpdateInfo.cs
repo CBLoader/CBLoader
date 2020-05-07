@@ -136,8 +136,6 @@ namespace CBLoader
                 }
                 if (remoteVersion.SemVer > semver)
                     return true;
-                if (remoteVersion.SemVer == semver && remoteVersion.Hash != null && remoteVersion.Hash != Utils.HashFile(filename))
-                    return true;
                 return false;
             }
             if (remoteVersion == null)

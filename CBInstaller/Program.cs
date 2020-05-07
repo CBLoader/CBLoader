@@ -14,20 +14,25 @@ using System.Windows.Forms;
 using System.Xml.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using System.Security.AccessControl;
 
 namespace CBInstaller
 {
     class Program
     {
-        static readonly string progdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "CBLoader");
+        static readonly string progdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CBLoader");
         static readonly string custom = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader");
         private static Version installed;
 
         [STAThread]
         static void Main(string[] args)
         {
-            if (Utils.GetInstallPath() != null)
-                MaybeUninstall();
+            try
+            {
+                if (Utils.GetInstallPath() != null)
+                    MaybeUninstall();
+            }
+            catch (Exception) { }
             if (string.IsNullOrWhiteSpace(Utils.GetInstallPath()))
                 Install();
             Utils.ConfigureTLS12();
@@ -83,8 +88,8 @@ namespace CBInstaller
                 var expected = new byte[] { 20, 200, 83, 194, 101, 209, 133, 89, 219, 57, 93, 31, 22, 16, 47, 20 };
                 if (!expected.SequenceEqual(hash))
                 {
-                    MessageBox.Show("Please uninstall Character Builder and run me again.");
-                    Environment.Exit(0);
+                    Console.Write("You don't have the 2010 update?");
+                    //Environment.Exit(0);
                 }
             }
         }
@@ -94,6 +99,7 @@ namespace CBInstaller
             var wc = new WebClient();
             string zip = Path.GetFileName(update.DownloadUrl);
             wc.DownloadFile(update.DownloadUrl, zip);
+            var security = new DirectorySecurity();
             Directory.CreateDirectory(progdata);
             using (var zipfile = ZipFile.OpenRead(zip))
             {
@@ -105,8 +111,10 @@ namespace CBInstaller
                     else
                         e.ExtractToFile(path, true);
 
+
                 }
             }
+
             installed = update.Version;
         }
 
