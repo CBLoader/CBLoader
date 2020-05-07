@@ -425,7 +425,9 @@ namespace CBLoader
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         internal static void Main(string[] args)
         {
+            Utils.ConfigureTLS12();
             Console.WriteLine($"CBLoader version {Version}");
+            Utils.CheckForUpdates();
             Console.WriteLine();
             Log.InitLogging();
             Log.Trace($"CBLoader version {Version}");

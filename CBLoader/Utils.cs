@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Xml.Linq;
 using Microsoft.Win32;
 using System.Security.Cryptography;
@@ -10,6 +11,8 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Security.Permissions;
+using System.Net;
+using System.Security.Authentication;
 
 namespace CBLoader
 {
@@ -96,6 +99,13 @@ namespace CBLoader
 
     internal static class Utils
     {
+        public const SslProtocols _Tls12 = (SslProtocols)0x00000C00;
+        public const SecurityProtocolType Tls12 = (SecurityProtocolType)_Tls12;
+        public static void ConfigureTLS12()
+        {
+            ServicePointManager.SecurityProtocol = Tls12;
+        }
+
         internal static bool IS_WINDOWS =
             Environment.OSVersion.Platform == PlatformID.Win32NT ||
             Environment.OSVersion.Platform == PlatformID.Win32S ||
@@ -164,6 +174,37 @@ namespace CBLoader
             return progIdKey
                 .CreateSubKey("shell").CreateSubKey(actionName).CreateSubKey("command")
                 .MaybeSetValue("", invoke);
+        }
+
+        public static string CheckForUpdates()
+        {
+            var ver = typeof(Program).Assembly.GetName().Version;
+            
+            var wc = new WebClient();
+            wc.Headers["User-Agent"] = "CBLoader-Update-Checker";
+            try {
+                var json = wc.DownloadString("http://api.github.com/repos/CBLoader/CBLoader/releases");
+                var releases = SimpleJSON.JSON.Parse(json);
+                foreach (var rel in releases.Children)
+                {
+                    if (rel["prerelease"] == true)
+                        continue;
+                    var rs = rel["tag_name"].Value.Trim('v');
+                    var remote = new Version(rs);
+                    if (remote > ver)
+                    {
+                        Console.WriteLine("A new version of CBLoader is available.");
+                        Console.WriteLine(rel["html_url"].Value);
+                        return rel["html_url"].Value;
+                    }
+                    return null;
+                }
+            }
+            catch (WebException c)
+            {
+                return null;
+            }
+            return null;
         }
 
         /// <summary>
