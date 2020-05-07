@@ -51,6 +51,7 @@ namespace CBInstaller
                 CheckForUpdate(new Version());
             if (!File.Exists("WotC.index"))
                 GetIndex("WotC");
+            Directory.CreateDirectory(custom);
             foreach (var index in Directory.GetFiles(Environment.CurrentDirectory, "*.index"))
             {
                 string path = Path.Combine(custom, Path.GetFileName(index));
