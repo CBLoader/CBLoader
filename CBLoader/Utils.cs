@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using System.Security.Permissions;
 using System.Net;
 using System.Security.Authentication;
+using System.Windows.Media;
 
 namespace CBLoader
 {
@@ -114,12 +115,23 @@ namespace CBLoader
         private static readonly string CB_INSTALL_ID = "{626C034B-50B8-47BD-AF93-EEFD0FA78FF4}";
         public static string GetInstallPath()
         {
-            if (!IS_WINDOWS) return null;
+            if (IS_WINDOWS)
+            {
+                var reg = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{CB_INSTALL_ID}");
+                if (reg != null) return reg.GetValue("InstallLocation").ToString();
+            }
 
-            var reg = Registry.LocalMachine
-                .OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{CB_INSTALL_ID}");
-            if (reg == null) return null;
-            else return reg.GetValue("InstallLocation").ToString();
+            var searchPath = new string[] {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Character Builder"), // Subdir
+                AppDomain.CurrentDomain.BaseDirectory, // Same dir
+                @"C:\Users\WDAGUtilityAccount\Desktop\Character Builder", // Windows Sandbox
+            };
+            foreach (var local in searchPath)
+            {
+                if (File.Exists(Path.Combine(local, "CharacterBuilder.exe")))
+                    return local;
+            }
+            return null;
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
