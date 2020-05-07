@@ -176,7 +176,7 @@ namespace CBInstaller
                     Environment.Exit(process.ExitCode);
                     return;
                 }
-                catch (System.ComponentModel.Win32Exception c)
+                catch (System.ComponentModel.Win32Exception)
                 {
                     Console.WriteLine("Unable to Elevate.  Please run me as Admin");
                     if (!Debugger.IsAttached)

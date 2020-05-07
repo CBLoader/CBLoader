@@ -79,7 +79,7 @@ namespace CBLoader
                     {
                         Console.WriteLine("A new version of CBLoader is available.");
                         Console.WriteLine(rel["html_url"].Value);
-                        return new ReleaseInfo(remote, rel["html_url"].Value, rel["assets"][0]["browser_download_url"].Value);
+                        return new ReleaseInfo(remote, rel["html_url"].Value, FindCBLoaderAsset(rel)["browser_download_url"].Value);
                     }
                     return null;
                 }
@@ -90,6 +90,11 @@ namespace CBLoader
                 return null;
             }
             return null;
+
+            SimpleJSON.JSONNode FindCBLoaderAsset(SimpleJSON.JSONNode rel)
+            {
+                return rel["assets"].Children.FirstOrDefault(a => a["name"].Value == "CBLoader.zip");
+            }
         }
 
     }
