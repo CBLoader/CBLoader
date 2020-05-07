@@ -43,7 +43,7 @@
   <SetFileAssociations>false</SetFileAssociations>
   
   <!-- Enable this if you or tools you use need to look at the unencrypted files. -->
-  <DumpTemporaryFiles>false</DumpTemporaryFiles>
+  <DumpTemporaryFiles>true</DumpTemporaryFiles>
 
   <!-- The following options are meant for development of homebrew rules files. -->
   <LaunchBuilder>true</LaunchBuilder>
