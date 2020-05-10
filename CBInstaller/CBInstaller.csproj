@@ -51,6 +51,7 @@
     <Compile Include="..\CBLoader\UtilsShared.cs">
       <Link>UtilsShared.cs</Link>
     </Compile>
+    <Compile Include="NativeMethods.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

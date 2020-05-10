@@ -12,7 +12,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml.Linq;
-using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Security.AccessControl;
 
@@ -109,9 +108,16 @@ namespace CBInstaller
                     if (e.FullName.EndsWith("/"))
                         Directory.CreateDirectory(path);
                     else
-                        e.ExtractToFile(path, true);
-
-
+                    {
+                        try
+                        {
+                            e.ExtractToFile(path, true);
+                        }
+                        catch (IOException) {
+                            e.ExtractToFile(path + ".update", true);
+                            NativeMethods.MoveFileEx(path + ".update", path, MoveFileFlags.DelayUntilReboot);
+                        }
+                    }
                 }
             }
 
@@ -176,11 +182,17 @@ namespace CBInstaller
             config = Encoding.UTF8.GetBytes(configreadable);
             File.WriteAllBytes(PatchedPath, sfx.Concat(config).Concat(zip).ToArray());
             Run(new ProcessStartInfo(PatchedPath, $"-y"));
+            if (IsAdministrator())
+                Environment.Exit(0);
         }
 
         private static void InstallSelf(string self)
         {
-            File.Copy(Assembly.GetExecutingAssembly().Location, self, true);
+            try
+            {
+                File.Copy(Assembly.GetExecutingAssembly().Location, self, true);
+            }
+            catch (IOException) { }
             IShellLink link = (IShellLink)new ShellLink();
             link.SetDescription($"Character Builder with CBLoader {installed?.ToString() ?? ""}");
             link.SetPath(self);
@@ -205,7 +217,8 @@ namespace CBInstaller
                 {
                     Process process = Process.Start(startInfo);
                     process.WaitForExit();
-                    Environment.Exit(process.ExitCode);
+                    if (process.ExitCode > 0)
+                        Environment.Exit(process.ExitCode);
                     return;
                 }
                 catch (System.ComponentModel.Win32Exception)
@@ -247,36 +260,5 @@ namespace CBInstaller
                 Console.WriteLine(c);
             }
         }
-    }
-
-    [ComImport]
-    [Guid("00021401-0000-0000-C000-000000000046")]
-    internal class ShellLink
-    {
-    }
-
-    [ComImport]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    [Guid("000214F9-0000-0000-C000-000000000046")]
-    internal interface IShellLink
-    {
-        void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, out IntPtr pfd, int fFlags);
-        void GetIDList(out IntPtr ppidl);
-        void SetIDList(IntPtr pidl);
-        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
-        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
-        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cchMaxPath);
-        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
-        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cchMaxPath);
-        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
-        void GetHotkey(out short pwHotkey);
-        void SetHotkey(short wHotkey);
-        void GetShowCmd(out int piShowCmd);
-        void SetShowCmd(int iShowCmd);
-        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
-        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
-        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, int dwReserved);
-        void Resolve(IntPtr hwnd, int fFlags);
-        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
     }
 }
