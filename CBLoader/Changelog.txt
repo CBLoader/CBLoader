@@ -1,4 +1,9 @@
-﻿v1.4.5
+﻿v1.4.5.1
+
+* Fix bugs in CBInstaller.exe
+* No changes to Loader.
+
+v1.4.5
 * Fix alert for new versions of CBLoader
 * Fix bug when HeroicDemo is missing.  For real this time.
 * Due to popular demand, DumpTemporaryFiles is enabled by default

@@ -103,6 +103,7 @@
     <Compile Include="PartMerger.cs" />
     <Compile Include="CryptoInfo.cs" />
     <Compile Include="PartLog.cs" />
+    <Compile Include="Properties\Version.cs" />
     <Compile Include="SimpleJson.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="UtilsShared.cs" />
