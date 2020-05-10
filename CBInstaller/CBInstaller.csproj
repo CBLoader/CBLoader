@@ -52,6 +52,7 @@
       <Link>UtilsShared.cs</Link>
     </Compile>
     <Compile Include="NativeMethods.cs" />
+    <Compile Include="LCB.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

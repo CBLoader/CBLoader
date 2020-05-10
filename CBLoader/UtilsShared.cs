@@ -51,12 +51,14 @@ namespace CBLoader
             public Version Version { get; }
             public string HtmlUrl { get; }
             public string DownloadUrl { get; }
+            public string InstallerUrl { get; }
 
-            public ReleaseInfo(Version remote, string htmlUrl, string downlaodUrl)
+            public ReleaseInfo(Version remote, string htmlUrl, string downloadUrl, string installerUrl)
             {
                 this.Version = remote;
                 this.HtmlUrl = htmlUrl;
-                this.DownloadUrl = downlaodUrl;
+                this.DownloadUrl = downloadUrl;
+                this.InstallerUrl = installerUrl;
             }
         }
 
@@ -79,7 +81,7 @@ namespace CBLoader
                     {
                         Console.WriteLine("A new version of CBLoader is available.");
                         Console.WriteLine(rel["html_url"].Value);
-                        return new ReleaseInfo(remote, rel["html_url"].Value, FindCBLoaderAsset(rel)["browser_download_url"].Value);
+                        return new ReleaseInfo(remote, rel["html_url"].Value, FindAsset(rel, "CBLoader.zip")["browser_download_url"].Value, FindAsset(rel, "CBInstaller.exe")["browser_download_url"].Value);
                     }
                     return null;
                 }
@@ -91,9 +93,9 @@ namespace CBLoader
             }
             return null;
 
-            SimpleJSON.JSONNode FindCBLoaderAsset(SimpleJSON.JSONNode rel)
+            SimpleJSON.JSONNode FindAsset(SimpleJSON.JSONNode rel, string filename)
             {
-                return rel["assets"].Children.FirstOrDefault(a => a["name"].Value == "CBLoader.zip");
+                return rel["assets"].Children.FirstOrDefault(a => a["name"].Value == filename);
             }
         }
 

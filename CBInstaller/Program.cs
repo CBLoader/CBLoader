@@ -19,7 +19,7 @@ namespace CBInstaller
 {
     class Program
     {
-        static readonly string progdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CBLoader");
+        static readonly string appdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CBLoader");
         static readonly string custom = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader");
         private static Version installed;
 
@@ -29,15 +29,15 @@ namespace CBInstaller
             try
             {
                 if (Utils.GetInstallPath() != null)
-                    MaybeUninstall();
+                    LCB.MaybeUninstall();
             }
             catch (Exception) { }
             if (string.IsNullOrWhiteSpace(Utils.GetInstallPath()))
-                Install();
+                LCB.Install();
             Utils.ConfigureTLS12();
-            if (Directory.Exists(progdata) && File.Exists(Path.Combine(progdata, "CBLoader.exe")))
+            if (Directory.Exists(appdata) && File.Exists(Path.Combine(appdata, "CBLoader.exe")))
             {
-                string logfile = Path.Combine(progdata, "CBLoader.log");
+                string logfile = Path.Combine(appdata, "CBLoader.log");
                 if (File.Exists(logfile))
                 {
                     try
@@ -62,10 +62,10 @@ namespace CBInstaller
                 if (!File.Exists(path))
                     File.Copy(index, path);
             }
-            Environment.CurrentDirectory = progdata;
-            Process.Start(new ProcessStartInfo(Path.Combine(progdata, "CBLoader.exe")));
+            Environment.CurrentDirectory = appdata;
+            Process.Start(new ProcessStartInfo(Path.Combine(appdata, "CBLoader.exe")));
 
-            var installPath = Path.Combine(progdata, "CBInstaller.exe");
+            var installPath = Path.Combine(appdata, "CBInstaller.exe");
             if (Assembly.GetExecutingAssembly().Location != installPath)
             {
                 InstallSelf(installPath);
@@ -79,19 +79,6 @@ namespace CBInstaller
                 Download(update);
         }
 
-        private static void MaybeUninstall()
-        {
-            using (var md5 = MD5.Create())
-            {
-                var hash = md5.ComputeHash(File.ReadAllBytes(Path.Combine(Utils.GetInstallPath(), "CharacterBuilder.exe")));
-                var expected = new byte[] { 20, 200, 83, 194, 101, 209, 133, 89, 219, 57, 93, 31, 22, 16, 47, 20 };
-                if (!expected.SequenceEqual(hash))
-                {
-                    Console.Write("You don't have the 2010 update?");
-                    //Environment.Exit(0);
-                }
-            }
-        }
 
         private static void Download(Utils.ReleaseInfo update)
         {
@@ -99,12 +86,12 @@ namespace CBInstaller
             string zip = Path.GetFileName(update.DownloadUrl);
             wc.DownloadFile(update.DownloadUrl, zip);
             var security = new DirectorySecurity();
-            Directory.CreateDirectory(progdata);
+            Directory.CreateDirectory(appdata);
             using (var zipfile = ZipFile.OpenRead(zip))
             {
                 foreach (var e in zipfile.Entries)
                 {
-                    var path = Path.Combine(progdata, e.FullName);
+                    var path = Path.Combine(appdata, e.FullName);
                     if (e.FullName.EndsWith("/"))
                         Directory.CreateDirectory(path);
                     else
@@ -120,71 +107,13 @@ namespace CBInstaller
                     }
                 }
             }
+            wc.DownloadFile(update.InstallerUrl, $"CBInstaller {update.Version}.exe");
+            NativeMethods.MoveFileEx($"CBInstaller {update.Version}.exe", Path.Combine(appdata, "CBInstaller.exe"), MoveFileFlags.DelayUntilReboot);
 
             installed = update.Version;
         }
 
-        private static void Install()
-        {
-            Elevate();
-
-            var ddiSetup = "ddisetup2009April.exe";
-            if (!File.Exists(ddiSetup))
-                ddiSetup = "ddisetup.exe";
-            if (!File.Exists(ddiSetup))
-            {
-                var openFileDialog = new OpenFileDialog { Filter = "ddisetup2009April.exe|ddisetup2009April.exe;ddisetup.exe" };
-                openFileDialog.ShowDialog();
-                ddiSetup = openFileDialog.FileName;
-            }
-
-            if (!File.Exists(ddiSetup))
-            {
-                Console.WriteLine("Can't find ddisetup2009April.exe, aborting");
-                Environment.Exit(1);
-            }
-
-            var update = "Character_Builder_Update_Oct_2010.exe";
-            if (!File.Exists(update))
-            {
-                var openFileDialog = new OpenFileDialog { Filter = "Character_Builder_Update_Oct_2010.exe|Character_Builder_Update_Oct_2010.exe" };
-                openFileDialog.ShowDialog();
-                update = openFileDialog.FileName;
-            }
-            if (!File.Exists(update))
-            {
-                Console.WriteLine($"Can't find {update}, aborting");
-                Environment.Exit(2);
-            }
-
-            Run(new ProcessStartInfo(ddiSetup, "-v\"INSTALLDIR=C:\\CharacterBuilder -q\""));
-
-            var cbpath = Utils.GetInstallPath();
-            Console.WriteLine($"Installed to {cbpath}");
-
-            const string PatchedPath = "Patched.Oct.2010.exe";
-            byte[] sfx = new byte[0x23E03];
-            byte[] config = new byte[0x1C6];
-            byte[] zip = new byte[0x309FE96];
-
-            using (var file = File.OpenRead(update))
-            {
-                file.Read(sfx, 0, 0x23E03);
-                if (sfx.Last() != 0xBF)
-                    throw new ArgumentException("Corrupted Oct2010 patch");
-                file.Read(config, 0, 0x1C6);
-                if (config.First() != ';' || config.Last() != '!')
-                    throw new ArgumentException("Corrupted Oct2010 patch");
-                file.Read(zip, 0, 0x309FE96);
-            }
-            string configreadable = Encoding.UTF8.GetString(config);
-            configreadable = configreadable.Replace(@"C:\Program Files\Wizards of the Coast\Character Builder", cbpath.Trim('\\'));
-            config = Encoding.UTF8.GetBytes(configreadable);
-            File.WriteAllBytes(PatchedPath, sfx.Concat(config).Concat(zip).ToArray());
-            Run(new ProcessStartInfo(PatchedPath, $"-y"));
-            if (IsAdministrator())
-                Environment.Exit(0);
-        }
+        
 
         private static void InstallSelf(string self)
         {
@@ -196,52 +125,11 @@ namespace CBInstaller
             IShellLink link = (IShellLink)new ShellLink();
             link.SetDescription($"Character Builder with CBLoader {installed?.ToString() ?? ""}");
             link.SetPath(self);
-            link.SetIconLocation(Path.Combine(progdata, "CBLoader.exe"), 0);
+            link.SetIconLocation(Path.Combine(appdata, "CBLoader.exe"), 0);
 
             IPersistFile file = (IPersistFile)link;
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             file.Save(Path.Combine(desktopPath, "CBLoader.lnk"), false);
-        }
-
-        private static void Elevate()
-        {
-            if (!IsAdministrator())
-            {
-                // Restart program and run as admin
-                var exeName = Process.GetCurrentProcess().MainModule.FileName;
-                ProcessStartInfo startInfo = new ProcessStartInfo(exeName)
-                {
-                    Verb = "runas"
-                };
-                try
-                {
-                    Process process = Process.Start(startInfo);
-                    process.WaitForExit();
-                    if (process.ExitCode > 0)
-                        Environment.Exit(process.ExitCode);
-                    return;
-                }
-                catch (System.ComponentModel.Win32Exception)
-                {
-                    Console.WriteLine("Unable to Elevate.  Please run me as Admin");
-                    if (!Debugger.IsAttached)
-                        Environment.Exit(10);
-                }
-            }
-        }
-
-        private static bool IsAdministrator()
-        {
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            WindowsPrincipal principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
-        }
-
-        private static void Run(ProcessStartInfo psi)
-        {
-            var p = Process.Start(psi);
-            Console.WriteLine($"Running {psi.FileName} {psi.Arguments} ...");
-            p.WaitForExit();
         }
 
         public static void GetIndex(string name)
