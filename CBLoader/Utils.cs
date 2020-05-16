@@ -162,8 +162,8 @@ namespace CBLoader
         /// </summary>
         public static void UpdateRegistry()
         {
+#if DO_ASSOCIATIONS
             if (!IS_WINDOWS) return;
-            return;
 
             Log.Info("Setting file associations.");
             var stopwatch = new Stopwatch();
@@ -184,6 +184,7 @@ namespace CBLoader
             stopwatch.Stop();
             Log.Debug($"Finished in {stopwatch.ElapsedMilliseconds} ms");
             Log.Debug();
+#endif
         }
 
         public static bool IsFilenameValid(string filename) =>
