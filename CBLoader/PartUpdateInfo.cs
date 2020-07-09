@@ -119,6 +119,16 @@ namespace CBLoader
 
         public bool CheckRequiresUpdate(string filename, string currentVersion, string updateUrl, string UpdateUrl2)
         {
+            if (string.IsNullOrEmpty(filename))
+            {
+                throw new ArgumentException("Parameter Null or Empty", nameof(filename));
+            }
+
+            if (string.IsNullOrEmpty(currentVersion))
+            {
+                throw new ArgumentException("Parameter Null or Empty", nameof(currentVersion));
+            }
+
             var partFile = Path.GetFileName(filename);
             var remoteVersion = GetRemoteVersion(UpdateUrl2, partFile) ?? GetRemoteVersion(updateUrl, partFile);
             Version semver = null;
@@ -129,7 +139,7 @@ namespace CBLoader
             catch (ArgumentException) { }
             if (semver != null)
             {
-                if (remoteVersion.SemVer == null)
+                if (remoteVersion?.SemVer == null)
                 {
                     Log.Warn($" - {partFile} has a semantic version, but the remote version doesn't.");
                     return false;
