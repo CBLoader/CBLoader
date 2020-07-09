@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection;
 using System.Security;
 using System.Threading;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace CBLoader
@@ -104,6 +105,17 @@ namespace CBLoader
                 }
             };
         }
+
+        public static string LocalizedString(int tableId)
+        {
+            switch (tableId)
+            {
+                case 6225: // Contact Customer Support.
+                    return "There was an error loading combined.dnd40.  This usually means there's a malformed part file.";
+                default:
+                    return $"<{tableId}>";
+            }
+        }
     }
 
     internal static class ProcessLauncher
@@ -173,6 +185,24 @@ namespace CBLoader
             });
             exception.TryEnd = method.Body.Instructions[handlerStart];
             exception.HandlerStart = method.Body.Instructions[handlerStart];
+        }
+
+        private static void ReplaceInitializationFailure(AssemblyDef assembly)
+        {
+            var imp = new Importer(assembly.ManifestModule);
+            var type = assembly.ManifestModule.Find("Character_Builder.App", false);
+            var method = type.FindDefaultConstructor();
+            for (int i = 0; i < method.Body.Instructions.Count; i++)
+            {
+                if (method.Body.Instructions[i].OpCode != OpCodes.Ldc_I4)
+                    continue;
+                if (method.Body.Instructions[i].GetLdcI4Value() != 6225)
+                    continue;
+                var getStringCall = method.Body.Instructions[i + 1];
+                method.Body.Instructions.RemoveAt(i + 1);
+                method.Body.Instructions.Insert(i + 1, OpCodes.Call.ToInstruction(imp.Import(typeof(Callbacks).GetMethod("LocalizedString"))));
+                return;
+            }
         }
 
         private static readonly string ADD_NAVIGATIONFAILED =
@@ -272,6 +302,9 @@ namespace CBLoader
 
             Log.Debug("   - Removing D&D Compendium links.");
             RemoveCompendiumLinks(assembly);
+
+            Log.Debug("   - Fixing D20Workspace error.");
+            ReplaceInitializationFailure(assembly);
 
             AddOverride(callback, assembly, true);
         }
