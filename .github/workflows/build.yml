@@ -18,7 +18,7 @@ jobs:
     - name: Restore packages
       run: nuget restore CBLoader.sln
     - name: Setup MSBuild.exe
-      uses: warrenbuckley/Setup-MSBuild@v1
+      uses: microsoft/setup-msbuild@v1.0.2
     - name: Build with MSBuild
       run: msbuild -p:Configuration=${{ matrix.configuration }}
     - name: Upload artifact
