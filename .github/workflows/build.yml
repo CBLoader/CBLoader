@@ -14,7 +14,7 @@ jobs:
       with:
        submodules: true
     - name: Setup Nuget.exe
-      uses: warrenbuckley/Setup-Nuget@v1
+      uses: NuGet/setup-nuget@v1
     - name: Restore packages
       run: nuget restore CBLoader.sln
     - name: Setup MSBuild.exe
