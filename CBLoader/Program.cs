@@ -116,6 +116,8 @@ namespace CBLoader
         public bool DumpTemporaryFiles = false;
         public bool CreateUpdateIndexFiles = false;
 
+        public bool Oct2010 { get; internal set; }
+
         public void AddPath(string dir, bool update = true)
         {
             if (!Directory.Exists(dir))
@@ -397,6 +399,7 @@ namespace CBLoader
             {
                 Solve2009Version(options, ref cryptoInfo);
             }
+            options.Oct2010 = cryptoInfo.expectedDemoHash == ParsedD20RulesEngine.DemoHashOct2010;
 
             var fileManager = new PartManager(options, cryptoInfo);
 
