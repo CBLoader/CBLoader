@@ -87,6 +87,8 @@ namespace CBInstaller
             wc.DownloadFile(update.DownloadUrl, zip);
             var security = new DirectorySecurity();
             Directory.CreateDirectory(appdata);
+            Environment.CurrentDirectory = appdata;
+
             using (var zipfile = ZipFile.OpenRead(zip))
             {
                 foreach (var e in zipfile.Entries)
@@ -130,6 +132,11 @@ namespace CBInstaller
             IPersistFile file = (IPersistFile)link;
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             file.Save(Path.Combine(desktopPath, "CBLoader.lnk"), false);
+            var origShortcut = new FileInfo(Path.Combine(desktopPath, "Character Builder.lnk"));
+            if (origShortcut.Exists)
+            {
+                origShortcut.Delete();
+            }
         }
 
         public static void GetIndex(string name)
