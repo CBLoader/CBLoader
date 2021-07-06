@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml.Serialization;
@@ -239,7 +240,7 @@ namespace CBLoader
         public static string Version;
         static Program()
         {
-            var ver = typeof(Program).Assembly.GetName().Version;
+            var ver = new Version(typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), true).OfType<AssemblyFileVersionAttribute>().First().Version);
             Version = $"{ver.Major}.{ver.Minor}.{ver.Build}";
 #if DEBUG
             Version += " Beta";
