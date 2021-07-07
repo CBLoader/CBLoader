@@ -1,4 +1,12 @@
-﻿v1.4.5.1
+﻿CBLoader Changelog
+
+v1.4.6
+
+* Fix bug when V2 versions are invalid
+* Replace "Contact WotC customer support" to a more useful error message
+* Easy Installer now removes a link to the vanilla Builder from your desktop
+
+v1.4.5.1
 
 * Fix bugs in CBInstaller.exe
 * No changes to Loader.
