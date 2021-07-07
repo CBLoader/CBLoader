@@ -237,13 +237,14 @@ namespace CBLoader
 
     internal static class Program
     {
-        public static string Version;
+        private static readonly Version Version;
+        public static readonly string VersionString;
         static Program()
         {
-            var ver = new Version(typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), true).OfType<AssemblyFileVersionAttribute>().First().Version);
-            Version = $"{ver.Major}.{ver.Minor}.{ver.Build}";
+            Version = new Version(typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), true).OfType<AssemblyFileVersionAttribute>().First().Version);
+            VersionString = $"{Version.Major}.{Version.Minor}.{Version.Build}";
 #if DEBUG
-            Version += " Beta";
+            VersionString += " Beta";
 #endif
 
         }
@@ -430,11 +431,11 @@ namespace CBLoader
         internal static void Main(string[] args)
         {
             Utils.ConfigureTLS12();
-            Console.WriteLine($"CBLoader version {Version}");
-            Utils.CheckForUpdates(typeof(Program).Assembly.GetName().Version);
+            Console.WriteLine($"CBLoader version {VersionString}");
+            Utils.CheckForUpdates(Version);
             Console.WriteLine();
             Log.InitLogging();
-            Log.Trace($"CBLoader version {Version}");
+            Log.Trace($"CBLoader version {VersionString}");
             Log.Trace();
 
             try

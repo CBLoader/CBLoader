@@ -1,5 +1,9 @@
 ﻿CBLoader Changelog
 
+v1.4.6.1
+
+* Fix bug where CBLoader would incorrectly insist there was an update available
+
 v1.4.6
 
 * Fix bug when V2 versions are invalid
