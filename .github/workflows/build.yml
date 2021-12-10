@@ -22,14 +22,14 @@ jobs:
     - name: Build with MSBuild
       run: msbuild -p:Configuration=${{ matrix.configuration }}
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v2.3.0
       with:
         # Artifact name
         name: ${{ matrix.configuration }}
         # Directory containing files to upload
         path: CBLoader/bin/${{ matrix.configuration }}/
     - name: Upload Installer
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v2.3.0
       with:
         # Artifact name
         name: ${{ matrix.configuration }}
