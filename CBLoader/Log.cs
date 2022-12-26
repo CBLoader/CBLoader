@@ -107,6 +107,7 @@ namespace CBLoader
         {
             RemoteReceiver.ErrorLogged = true;
             BaseLog("Error", true, true, msg, e);
+            Program.sentry.Capture(new SharpRaven.Data.SentryEvent(e) { Message = msg });
         }
     }
 }

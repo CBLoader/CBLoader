@@ -1,4 +1,5 @@
 ﻿using Mono.Options;
+using SharpRaven;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -239,6 +240,7 @@ namespace CBLoader
     {
         private static readonly Version Version;
         public static readonly string VersionString;
+        public static readonly RavenClient sentry = new RavenClient("https://0ec76d4513484f2e9a437640486a8172@sentry.redpoint.games/18");
         static Program()
         {
             Version = new Version(typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), true).OfType<AssemblyFileVersionAttribute>().First().Version);
@@ -246,9 +248,14 @@ namespace CBLoader
 #if DEBUG
             VersionString += " Beta";
 #endif
-
+            AppDomain.CurrentDomain.UnhandledException += Sentry_UnhandledException;
         }
-        
+
+        private static void Sentry_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            Program.sentry.Capture(new SharpRaven.Data.SentryEvent(e.ExceptionObject as Exception));
+        }
+
         private static void SetUniqueString(ref string target, string flag, string value)
         {
             if (target != null)
