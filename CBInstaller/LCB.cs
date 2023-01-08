@@ -17,6 +17,8 @@ namespace CBInstaller
     /// </summary>
     static class LCB
     {
+        public static string ProgramsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Character Builder");
+
         internal static void MaybeUninstall()
         {
             using (var md5 = MD5.Create())
@@ -64,7 +66,7 @@ namespace CBInstaller
                 Environment.Exit(2);
             }
 
-            Run(new ProcessStartInfo(ddiSetup, "-v\"INSTALLDIR=C:\\CharacterBuilder -q\""));
+            Run(new ProcessStartInfo(ddiSetup, $"-v\"INSTALLDIR={ProgramsFolder} -q\""));
 
             var cbpath = Utils.GetInstallPath();
             Console.WriteLine($"Installed to {cbpath}");
