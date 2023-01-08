@@ -34,7 +34,14 @@ namespace CBInstaller
             catch (Exception) { }
             if (string.IsNullOrWhiteSpace(Utils.GetInstallPath()))
                 LCB.Install();
-            Utils.ConfigureTLS12();
+            try
+            {
+                Utils.ConfigureTLS12();
+            }
+            catch (NotSupportedException)
+            {
+                MessageBox.Show("Warning:  TLS 1.2 not available.  Installer may not work.");
+            }
             if (Directory.Exists(appdata) && File.Exists(Path.Combine(appdata, "CBLoader.exe")))
             {
                 string logfile = Path.Combine(appdata, "CBLoader.log");

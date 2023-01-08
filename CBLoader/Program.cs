@@ -437,13 +437,20 @@ namespace CBLoader
         [LoaderOptimization(LoaderOptimization.MultiDomain)]
         internal static void Main(string[] args)
         {
-            Utils.ConfigureTLS12();
             Console.WriteLine($"CBLoader version {VersionString}");
-            Utils.CheckForUpdates(Version);
-            Console.WriteLine();
             Log.InitLogging();
             Log.Trace($"CBLoader version {VersionString}");
             Log.Trace();
+            try
+            {
+                Utils.ConfigureTLS12();
+            }
+            catch (NotSupportedException e)
+            {
+                Log.Error("TLS 1.2 not available.", e);
+            }
+            Utils.CheckForUpdates(Version);
+            Console.WriteLine();
 
             try
             {
