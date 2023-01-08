@@ -16,6 +16,7 @@ namespace CBLoader
     internal sealed class TargetDomainCallback : PersistantRemoteObject
     {
         private string cbDirectory;
+        private string loaderDirectory;
         private readonly Dictionary<string, byte[]> patchedAssemblies = new Dictionary<string, byte[]>();
 
         private readonly Assembly myAssembly = Assembly.GetAssembly(typeof(TargetDomainCallback));
@@ -23,6 +24,7 @@ namespace CBLoader
         internal void Init(string cbDirectory, LogRemoteReceiver logRemote, string redirectPath, string callback, bool oct2010)
         {
             this.cbDirectory = cbDirectory;
+            this.loaderDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             Log.InitLoggingForChildDomain(logRemote);
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
 
@@ -38,6 +40,12 @@ namespace CBLoader
         private Assembly CheckExtension(string name, string extension)
         {
             var path = Path.Combine(cbDirectory, $"{name}.{extension}");
+            if (File.Exists(path))
+            {
+                Log.Debug($" - Found assembly at {path}");
+                return Assembly.LoadFrom(path);
+            }
+            path = Path.Combine(loaderDirectory, $"{name}.{extension}");
             if (File.Exists(path))
             {
                 Log.Debug($" - Found assembly at {path}");
