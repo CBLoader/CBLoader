@@ -72,7 +72,7 @@ namespace CBInstaller
                     File.Copy(index, path);
             }
             Environment.CurrentDirectory = appdata;
-            Process.Start(new ProcessStartInfo(Path.Combine(appdata, "CBLoader.exe")));
+            Process.Start(new ProcessStartInfo(Path.Combine(progdir, "CBLoader.exe")));
 
             var installPath = Path.Combine(progdir, "CBInstaller.exe");
             if (Assembly.GetExecutingAssembly().Location != installPath)
@@ -93,7 +93,7 @@ namespace CBInstaller
         {
             Environment.CurrentDirectory = appdata;
             var wc = new WebClient();
-            string zip = Path.GetFileName(update.DownloadUrl);
+            string zip = Path.Combine(appdata, Path.GetFileName(update.DownloadUrl));
             wc.DownloadFile(update.DownloadUrl, zip);
             var security = new DirectorySecurity();
             Directory.CreateDirectory(progdir);
