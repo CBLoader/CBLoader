@@ -20,7 +20,7 @@ namespace CBInstaller
     {
         private const string Oct2010Url = "https://archive.org/download/ddi_charbuilder/Character_Builder_Update_Oct_2010.exe";
         private const string ddiSetupUrl = "https://archive.org/download/ddi_charbuilder/ddisetup.exe";
-        public static string ProgramsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Character Builder");
+        public static string ProgramsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CharacterBuilder");
 
         internal static void MaybeUninstall()
         {
@@ -98,6 +98,9 @@ namespace CBInstaller
                 Console.WriteLine($"Can't find {update}, aborting");
                 Environment.Exit(2);
             }
+
+            if (ProgramsFolder.Contains(" ")) // We can't have spaces in the path.
+                ProgramsFolder = "C:\\CharacterBuilder";
 
             Run(new ProcessStartInfo(ddiSetup, $"-v\"INSTALLDIR={ProgramsFolder} -q\""));
 
