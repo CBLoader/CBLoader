@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
@@ -42,6 +43,20 @@ namespace CBInstaller
                 ddiSetup = "ddisetup.exe";
             if (!File.Exists(ddiSetup))
             {
+                try
+                {
+                    var wc = new WebClient();
+                    wc.DownloadFile("https://archive.org/download/ddi_charbuilder/ddisetup.exe", ddiSetup);
+                }
+                catch (WebException c)
+                {
+                    MessageBox.Show(c.Message);
+                    if (File.Exists(ddiSetup))
+                        File.Delete(ddiSetup);
+                }
+            }
+            if (!File.Exists(ddiSetup))
+            {
                 var openFileDialog = new OpenFileDialog { Filter = "ddisetup2009April.exe|ddisetup2009April.exe;ddisetup.exe" };
                 openFileDialog.ShowDialog();
                 ddiSetup = openFileDialog.FileName;
@@ -54,6 +69,20 @@ namespace CBInstaller
             }
 
             var update = "Character_Builder_Update_Oct_2010.exe";
+            if (!File.Exists(update))
+            {
+                try
+                {
+                    var wc = new WebClient();
+                    wc.DownloadFile("https://archive.org/download/ddi_charbuilder/Character_Builder_Update_Oct_2010.exe", ddiSetup);
+                }
+                catch (WebException c)
+                {
+                    MessageBox.Show(c.Message);
+                    if (File.Exists(update))
+                        File.Delete(update);
+                }
+            }
             if (!File.Exists(update))
             {
                 var openFileDialog = new OpenFileDialog { Filter = "Character_Builder_Update_Oct_2010.exe|Character_Builder_Update_Oct_2010.exe" };
