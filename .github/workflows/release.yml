@@ -27,7 +27,7 @@ jobs:
     - name: Restore packages
       run: nuget restore CBLoader.sln
     - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.3.1
     - name: Build with MSBuild
       run: msbuild -p:Configuration=Release
     - run: 7z a Release.zip ./*
