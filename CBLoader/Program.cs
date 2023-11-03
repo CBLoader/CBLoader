@@ -240,20 +240,21 @@ namespace CBLoader
     {
         private static readonly Version Version;
         public static readonly string VersionString;
-        public static readonly RavenClient sentry = new RavenClient("https://0ec76d4513484f2e9a437640486a8172@sentry.redpoint.games/18");
+        public static readonly RavenClient sentry = new RavenClient("https://cbd66ca450dbb2b29fff22da66f51993@o4506160097656832.ingest.sentry.io/4506160098902016");
+        public static bool UpdateAvailable = false;
         static Program()
         {
             Version = new Version(typeof(Program).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), true).OfType<AssemblyFileVersionAttribute>().First().Version);
             VersionString = $"{Version.Major}.{Version.Minor}.{Version.Build}";
 #if DEBUG
             VersionString += " Beta";
+            //AppDomain.CurrentDomain.UnhandledException += Sentry_UnhandledException;
 #endif
-            AppDomain.CurrentDomain.UnhandledException += Sentry_UnhandledException;
         }
 
         private static void Sentry_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            Program.sentry.Capture(new SharpRaven.Data.SentryEvent(e.ExceptionObject as Exception));
+            sentry.Capture(new SharpRaven.Data.SentryEvent(e.ExceptionObject as Exception));
         }
 
         private static void SetUniqueString(ref string target, string flag, string value)
@@ -449,7 +450,8 @@ namespace CBLoader
             {
                 Log.Error("TLS 1.2 not available.", e);
             }
-            Utils.CheckForUpdates(Version);
+            var update = Utils.CheckForUpdates(Version);
+            if (update != null) UpdateAvailable = true;
             Console.WriteLine();
 
             try

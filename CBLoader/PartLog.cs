@@ -106,7 +106,7 @@ namespace CBLoader
         public string Generate() => $@"<html>
             <head>{HEAD_HTML}</head>
             <body>
-                CBLoader version {Program.VersionString} loaded
+                CBLoader version {Program.VersionString} loaded {(Program.UpdateAvailable ? "<div>(<a href=\"https://github.com/cbLoader/CBLoader/releases/latest\">update available</a>)</div>" : "")}
                 <br>
                 {generateSection("Loaded Modules", mergedModules)}
                 {generateSection("Deleted Modules", obsoletedModules)}
