@@ -20,7 +20,7 @@ namespace CBInstaller
     {
         private const string Oct2010Url = "https://archive.org/download/ddi_charbuilder/Character_Builder_Update_Oct_2010.exe";
         private const string ddiSetupUrl = "https://archive.org/download/ddi_charbuilder/ddisetup.exe";
-        public static string ProgramsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CharacterBuilder");
+        public static string ProgramsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "CharacterBuilder");
 
         internal static void MaybeUninstall()
         {

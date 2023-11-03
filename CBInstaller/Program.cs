@@ -21,7 +21,7 @@ namespace CBInstaller
     {
         static readonly string appdata = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CBLoader");
         static readonly string custom = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ddi", "CBLoader");
-        static readonly string progdir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CBLoader");
+        static readonly string progdir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "CBLoader");
         private static Version installed;
 
         [STAThread]
