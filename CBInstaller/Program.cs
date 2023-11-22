@@ -43,8 +43,10 @@ namespace CBInstaller
             {
                 MessageBox.Show("Warning:  TLS 1.2 not available.  Installer may not work.");
             }
+            if (!Directory.Exists(appdata))
+                Directory.CreateDirectory(appdata);
             Environment.CurrentDirectory = appdata;
-            if (Directory.Exists(appdata) && (File.Exists(Path.Combine(appdata, "CBLoader.exe")) || File.Exists(Path.Combine(progdir, "CBLoader.exe"))))
+            if (File.Exists(Path.Combine(appdata, "CBLoader.exe")) || File.Exists(Path.Combine(progdir, "CBLoader.exe")))
             {
                 string logfile = Path.Combine(appdata, "CBLoader.log");
                 if (File.Exists(logfile))

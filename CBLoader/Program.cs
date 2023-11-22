@@ -441,6 +441,7 @@ namespace CBLoader
             Console.WriteLine($"CBLoader version {VersionString}");
             Log.InitLogging();
             Log.Trace($"CBLoader version {VersionString}");
+            Log.Trace("Running on " + Environment.OSVersion.VersionString);
             Log.Trace();
             try
             {
